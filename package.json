@@ -1,0 +1,29 @@
+{
+	"name": "whatnow",
+	"private": true,
+	"version": "0.0.1",
+	"type": "module",
+	"scripts": {
+		"dev": "npm run generate-data && vite dev",
+		"generate-data": "tsx scripts/generate-data.ts",
+		"prebuild": "npm run generate-data",
+		"build": "vite build",
+		"preview": "vite preview",
+		"prepare": "svelte-kit sync || echo ''",
+		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
+		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch"
+	},
+	"devDependencies": {
+		"@sveltejs/adapter-static": "^3.0.10",
+		"@sveltejs/kit": "^2.63.0",
+		"@sveltejs/vite-plugin-svelte": "^7.1.2",
+		"svelte": "^5.56.1",
+		"svelte-check": "^4.6.0",
+		"typescript": "^6.0.3",
+		"tsx": "^4.20.5",
+		"vite": "^8.0.16"
+	},
+	"dependencies": {
+		"unofficial-metacritic": "^2.0.0"
+	}
+}

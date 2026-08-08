@@ -1,0 +1,17 @@
+# Repo-committed actions for Andy.
+version = 1
+
+[[projects]]
+id = "what-now"
+name = "What Now"
+contextDir = "."
+env = { }
+
+[[actions]]
+id = "act-dev"
+projectId = "what-now"
+name = "Dev"
+icon = "debug"
+command = "npm run dev"
+cwd = ""
+env = { }
