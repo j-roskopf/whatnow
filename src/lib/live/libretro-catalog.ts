@@ -1,4 +1,3 @@
-import { load } from 'cheerio';
 import type { CatalogEntry } from '$lib/types';
 
 const LIBRETRO = 'https://thumbnails.libretro.com';
@@ -54,10 +53,10 @@ function isPlayableRelease(file: string) {
 }
 
 function parseIndexFiles(html: string): string[] {
-	const $ = load(html);
+	const doc = new DOMParser().parseFromString(html, 'text/html');
 	const files: string[] = [];
-	$('a[href$=".png"]').each((_, element) => {
-		const href = $(element).attr('href');
+	doc.querySelectorAll('a[href$=".png"]').forEach((anchor) => {
+		const href = anchor.getAttribute('href');
 		if (!href || href.includes('Parent Directory')) return;
 		const decoded = decodeURIComponent(href.replace(/\.png$/i, ''));
 		if (decoded) files.push(decoded);

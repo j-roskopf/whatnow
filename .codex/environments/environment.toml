@@ -1,0 +1,11 @@
+# Repo-committed run actions for Codex.
+version = 1
+name = "What Now"
+
+[setup]
+script = ""
+
+[[actions]]
+name = "Dev"
+icon = "debug"
+command = "npm run dev"

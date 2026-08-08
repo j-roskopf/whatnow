@@ -1,19 +1,11 @@
+import { fetchMetacriticNewReleases } from '$lib/metacritic-live';
 import type { MetacriticPlatform, MetacriticReleasesResponse } from '$lib/types';
 
 export async function loadMetacriticNewReleases(
 	platform: MetacriticPlatform
 ): Promise<MetacriticReleasesResponse> {
 	try {
-		const response = await fetch(`/data/metacritic/${platform}.json`);
-		if (!response.ok) {
-			return {
-				releases: [],
-				platform,
-				fetchedAt: new Date().toISOString(),
-				source: 'error'
-			};
-		}
-		return (await response.json()) as MetacriticReleasesResponse;
+		return await fetchMetacriticNewReleases(platform);
 	} catch {
 		return {
 			releases: [],

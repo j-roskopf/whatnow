@@ -10,9 +10,8 @@ import type {
 } from '$lib/types';
 import { RETRO_SYSTEM_LABELS, RETRO_SYSTEM_KEYS, SYSTEMS } from '$lib/data';
 import { pickBestNameMatch } from '$lib/igdb';
-import { curateCatalogEntries } from '$lib/server/reception';
-import { fetchLibretroSystemCatalog } from '$lib/server/libretro-catalog';
-import { fetchPsStoreLastChance } from '$lib/server/ps-store';
+import { fetchLibretroSystemCatalog } from '$lib/live/libretro-catalog';
+import { fetchPsStoreLastChance } from '$lib/live/ps-store';
 
 const USER_AGENT = 'Mozilla/5.0 (compatible; WhatNow/1.0)';
 const CACHE_TTL_MS = 30 * 60 * 1000;
@@ -504,20 +503,15 @@ async function buildModernPickEntries(): Promise<CatalogEntry[]> {
 		fetchLiveNewEntries()
 	]);
 
-	const [curatedLeaving, curatedNew] = await Promise.all([
-		curateCatalogEntries(leaving, { maxFallback: 12 }),
-		curateCatalogEntries(newEntries, { maxFallback: 32 })
-	]);
-
 	return dedupeByName([
-		...curatedLeaving.map((entry) => ({
+		...leaving.slice(0, 12).map((entry) => ({
 			...entry,
 			service: 'modern' as const,
 			section: 'picks' as const,
 			tier: entry.tier ?? 'Leaving soon',
 			summary: pickSummary('leaving', entry)
 		})),
-		...curatedNew.map((entry) => ({
+		...newEntries.slice(0, 32).map((entry) => ({
 			...entry,
 			service: 'modern' as const,
 			section: 'picks' as const,
@@ -529,8 +523,7 @@ async function buildModernPickEntries(): Promise<CatalogEntry[]> {
 
 async function buildRetroPickEntries(): Promise<CatalogEntry[]> {
 	const samples = await fetchLiveRetroPoolSample();
-	const curated = await curateCatalogEntries(samples, { maxFallback: 48 });
-	return curated.map((entry) => ({
+	return samples.slice(0, 48).map((entry) => ({
 		...entry,
 		section: 'picks' as const,
 		summary: defaultWhy('retro', entry)
@@ -554,8 +547,7 @@ export async function fetchLivePool(options?: {
 		includeRetro ? fetchLiveRetroPoolSample() : Promise.resolve([])
 	]);
 
-	const process = async (entries: CatalogEntry[]) =>
-		curate ? await curateCatalogEntries(entries, { maxFallback: 0 }) : entries;
+	const process = async (entries: CatalogEntry[]) => entries;
 
 	const [curatedLeaving, curatedNew, curatedRetro] = await Promise.all([
 		process(leaving),
