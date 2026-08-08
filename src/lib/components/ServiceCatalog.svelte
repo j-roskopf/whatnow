@@ -54,6 +54,7 @@
 	let ratings = $state<Record<string, GameRatings>>({});
 	let source = $state('');
 	let fetchedAt = $state('');
+	const ratingAttempts = new Set<string>();
 
 	const pageSize = 48;
 
@@ -75,8 +76,10 @@
 	let visible = $derived(filtered.slice(page * pageSize, page * pageSize + pageSize));
 
 	async function hydrateRatings(slice: CatalogEntry[]) {
-		const missing = slice.filter((entry) => !ratings[entry.id]);
+		const missing = slice.filter((entry) => !ratings[entry.id] && !ratingAttempts.has(entry.id));
 		if (!missing.length) return;
+		for (const entry of missing) ratingAttempts.add(entry.id);
+
 		ratingsLoading = true;
 		const batch = await loadCatalogRatings(
 			missing.map((entry) => ({ id: entry.id, name: entry.name })),
@@ -95,6 +98,7 @@
 		}
 		loading = true;
 		ratings = {};
+		ratingAttempts.clear();
 		const catalog = await loadCatalog(
 			service,
 			next,

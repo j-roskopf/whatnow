@@ -119,8 +119,10 @@
 		persist();
 		ready = true;
 
-		const full = await loadPool();
-		if (full.games.length > games.length) {
+		// Retro catalogs are large; load them after the UI is interactive.
+		window.setTimeout(async () => {
+			const full = await loadPool();
+			if (full.games.length <= games.length) return;
 			games = full.games;
 			poolSource = full.source;
 			const valid = hand.filter((id) => games.some((game) => game.id === id));
@@ -128,7 +130,7 @@
 				hand = resolveHand();
 				persist();
 			}
-		}
+		}, 0);
 	});
 </script>
 

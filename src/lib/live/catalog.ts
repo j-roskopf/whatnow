@@ -471,12 +471,13 @@ function catalogEntryToGame(entry: CatalogEntry, reason: GameReason): Game {
 	};
 }
 
+const RETRO_POOL_SYSTEMS: RetroSystemKey[] = ['snes', 'gba', 'n64'];
+
 async function fetchLiveLeavingEntries(): Promise<CatalogEntry[]> {
-	const [gamePass, psPlusLibrary] = await Promise.all([
+	const [gamePass, psPlusLeaving] = await Promise.all([
 		fetchGamePassSection('leaving'),
-		fetchPsPlusLibrary()
+		fetchPsPlusLeaving([])
 	]);
-	const psPlusLeaving = await fetchPsPlusLeaving(psPlusLibrary.entries);
 	return dedupeByName([...gamePass.entries, ...psPlusLeaving.entries]);
 }
 
@@ -491,7 +492,7 @@ async function fetchLiveNewEntries(): Promise<CatalogEntry[]> {
 const RETRO_POOL_PER_SYSTEM = 48;
 
 async function fetchLiveRetroPoolSample(): Promise<CatalogEntry[]> {
-	const catalogs = await Promise.all(RETRO_SYSTEM_KEYS.map((key) => fetchRetroLibrary(key)));
+	const catalogs = await Promise.all(RETRO_POOL_SYSTEMS.map((key) => fetchRetroLibrary(key)));
 	return dedupeByName(
 		catalogs.flatMap((catalog) => catalog.entries.slice(0, RETRO_POOL_PER_SYSTEM))
 	);

@@ -52,15 +52,18 @@ function isPlayableRelease(file: string) {
 	return /\((USA|Europe|World|Canada|Australia)\)/i.test(file);
 }
 
-function parseIndexFiles(html: string): string[] {
-	const doc = new DOMParser().parseFromString(html, 'text/html');
+function parseIndexFiles(html: string, maxFiles = 500): string[] {
 	const files: string[] = [];
-	doc.querySelectorAll('a[href$=".png"]').forEach((anchor) => {
-		const href = anchor.getAttribute('href');
-		if (!href || href.includes('Parent Directory')) return;
+	const pattern = /href="([^"]+\.png)"/gi;
+	let match: RegExpExecArray | null;
+
+	while ((match = pattern.exec(html)) !== null && files.length < maxFiles) {
+		const href = match[1];
+		if (!href || href.includes('Parent Directory')) continue;
 		const decoded = decodeURIComponent(href.replace(/\.png$/i, ''));
 		if (decoded) files.push(decoded);
-	});
+	}
+
 	return files;
 }
 
