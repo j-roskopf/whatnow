@@ -5,7 +5,6 @@
 	import { RETRO_SYSTEM_KEYS, RETRO_SYSTEM_LABELS } from '$lib/data';
 	import CatalogCard from '$lib/components/CatalogCard.svelte';
 	import type {
-		ApiKeys,
 		CatalogEntry,
 		CatalogSection,
 		CatalogService,
@@ -15,7 +14,7 @@
 		SortKey
 	} from '$lib/types';
 
-	let { service, keys = {} }: { service: CatalogService; keys?: ApiKeys } = $props();
+	let { service }: { service: CatalogService } = $props();
 
 	const serviceSections: Record<CatalogService, { id: CatalogSection; label: string }[]> = {
 		gamepass: [
@@ -35,6 +34,10 @@
 		retro: [
 			{ id: 'picks', label: 'Well-received' },
 			{ id: 'library', label: 'Full library' }
+		],
+		humble: [
+			{ id: 'new', label: 'Choice' },
+			{ id: 'library', label: 'Bundles' }
 		]
 	};
 
@@ -82,8 +85,7 @@
 
 		ratingsLoading = true;
 		const batch = await loadCatalogRatings(
-			missing.map((entry) => ({ id: entry.id, name: entry.name })),
-			keys
+			missing.map((entry) => ({ id: entry.id, name: entry.name }))
 		);
 		ratings = { ...ratings, ...batch };
 		ratingsLoading = false;
@@ -233,7 +235,7 @@
 	{:else}
 		<div class="shelf catalog-grid">
 			{#each visible as entry (entry.id)}
-				<CatalogCard entry={entry} ratings={ratings[entry.id]} keys={keys} />
+				<CatalogCard entry={entry} ratings={ratings[entry.id]} />
 			{/each}
 		</div>
 		{#if pageCount > 1}

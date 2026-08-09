@@ -3,18 +3,16 @@
 	import { coverItem, galleryItems, loadGameMeta, screenshotItem } from '$lib/art';
 	import { normalizeImageUrl } from '$lib/html';
 	import MediaViewer from '$lib/components/MediaViewer.svelte';
-	import type { ApiKeys, ArtStatus, Game, GameRatings, MediaItem } from '$lib/types';
+	import type { ArtStatus, Game, GameRatings, MediaItem } from '$lib/types';
 
 	let {
 		game,
-		keys,
 		ratings: ratingsProp,
 		showDismiss = true,
 		onArtStatus,
 		onDismiss
 	}: {
 		game: Game;
-		keys: ApiKeys;
 		ratings?: GameRatings;
 		showDismiss?: boolean;
 		onArtStatus?: (status: ArtStatus) => void;
@@ -87,7 +85,7 @@
 			onArtStatus?.('loaded');
 		}
 
-		const meta = await loadGameMeta(game, keys);
+		const meta = await loadGameMeta(game);
 		if (meta.items.length) media = meta.items;
 		if (!ratingsProp?.scores.length && meta.ratings.scores.length) ratings = meta.ratings;
 		loading = false;

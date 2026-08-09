@@ -9,12 +9,12 @@ function pick(...values: (string | undefined)[]) {
 	return undefined;
 }
 
-export function resolveApiKeys(client?: ApiKeys): ApiKeys {
+export function resolveApiKeys(): ApiKeys {
 	return {
-		steamGridDb: pick(client?.steamGridDb, env.STEAMGRIDDB_KEY),
-		igdbClientId: pick(client?.igdbClientId, env.IGDB_CLIENT_ID),
-		igdbClientSecret: pick(client?.igdbClientSecret, env.IGDB_CLIENT_SECRET),
-		openCritic: pick(client?.openCritic, env.OPENCRITIC_KEY)
+		steamGridDb: pick(env.STEAMGRIDDB_KEY),
+		igdbClientId: pick(env.IGDB_CLIENT_ID),
+		igdbClientSecret: pick(env.IGDB_CLIENT_SECRET),
+		openCritic: pick(env.OPENCRITIC_KEY)
 	};
 }
 

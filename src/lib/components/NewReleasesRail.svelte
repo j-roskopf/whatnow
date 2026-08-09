@@ -3,9 +3,9 @@
 	import { loadMetacriticNewReleases } from '$lib/metacritic';
 	import MediaViewer from '$lib/components/MediaViewer.svelte';
 	import NewReleaseCard from '$lib/components/NewReleaseCard.svelte';
-	import type { ApiKeys, GameMeta, MetacriticPlatform, MetacriticRelease } from '$lib/types';
+	import type { GameMeta, MetacriticPlatform, MetacriticRelease } from '$lib/types';
 
-	let { today, keys }: { today: Date; keys: ApiKeys } = $props();
+	let { today }: { today: Date } = $props();
 
 	const platforms: { id: MetacriticPlatform; label: string }[] = [
 		{ id: 'ps5', label: 'PS5' },
@@ -50,7 +50,7 @@
 		viewerStart = start;
 	}
 
-	async function fetchReleases(next: MetacriticPlatform, keysSnapshot: ApiKeys) {
+	async function fetchReleases(next: MetacriticPlatform) {
 		loading = true;
 		meta = {};
 		const payload = await loadMetacriticNewReleases(next);
@@ -60,15 +60,14 @@
 		loading = false;
 
 		if (releases.length) {
-			const results = await loadMetaBatch(releases.map(lookupFor), keysSnapshot);
+			const results = await loadMetaBatch(releases.map(lookupFor));
 			meta = results;
 		}
 	}
 
 	$effect(() => {
-		const keysSnapshot = keys;
 		const platformSnapshot = platform;
-		fetchReleases(platformSnapshot, keysSnapshot);
+		fetchReleases(platformSnapshot);
 	});
 </script>
 
@@ -96,7 +95,6 @@
 			<NewReleaseCard
 				release={release}
 				meta={meta[slugId(release.name)]}
-				keys={keys}
 				timing={releaseTiming(release)}
 				onOpenViewer={(start) => openViewer(release, start)}
 			/>

@@ -1,7 +1,7 @@
 import { json, error } from '@sveltejs/kit';
 import { hasAnyApiKeys, resolveApiKeys } from '$lib/server/api-keys';
 import { lookupGameMeta } from '$lib/server/game-meta';
-import type { ApiKeys, GameMeta } from '$lib/types';
+import type { GameMeta } from '$lib/types';
 import type { RequestHandler } from './$types';
 
 export const prerender = false;
@@ -16,7 +16,6 @@ type MetaLookup = {
 
 type MetaRequest = {
 	lookups?: MetaLookup[];
-	keys?: ApiKeys;
 };
 
 const MAX_LOOKUPS = 48;
@@ -34,7 +33,7 @@ export const POST: RequestHandler = async ({ request }) => {
 		error(400, 'At least one lookup is required');
 	}
 
-	const keys = resolveApiKeys(body.keys);
+	const keys = resolveApiKeys();
 	if (!hasAnyApiKeys(keys)) {
 		error(503, 'No API keys configured');
 	}

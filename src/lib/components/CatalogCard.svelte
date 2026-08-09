@@ -1,13 +1,9 @@
 <script lang="ts">
 	import { cachedImageLoad, coverItem, imageLoads, loadGameMeta } from '$lib/art';
 	import { normalizeImageUrl } from '$lib/html';
-	import type { ApiKeys, CatalogEntry, GameRatings } from '$lib/types';
+	import type { CatalogEntry, GameRatings } from '$lib/types';
 
-	let {
-		entry,
-		ratings,
-		keys = {}
-	}: { entry: CatalogEntry; ratings?: GameRatings; keys?: ApiKeys } = $props();
+	let { entry, ratings }: { entry: CatalogEntry; ratings?: GameRatings } = $props();
 
 	let coverUrl = $state<string | undefined>(normalizeImageUrl(entry.imageUrl));
 	let snapUrl = $state<string | undefined>(normalizeImageUrl(entry.snapUrl));
@@ -44,11 +40,11 @@
 	});
 
 	$effect(() => {
-		if (coverUrl || !keys) return;
+		if (coverUrl) return;
 		const lookup = { id: entry.id, name: entry.name };
 		let cancelled = false;
 		artLoading = true;
-		void loadGameMeta(lookup, keys).then((meta) => {
+		void loadGameMeta(lookup).then((meta) => {
 			if (cancelled) return;
 			const cover = coverItem(meta.items);
 			if (cover) coverUrl = cover.url;

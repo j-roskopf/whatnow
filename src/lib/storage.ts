@@ -1,7 +1,5 @@
 import { browser } from '$app/environment';
-import type { ApiKeys } from '$lib/types';
 
-const KEYS = 'whatnow:api-keys';
 const DISMISSED = 'whatnow:dismissed';
 const HAND = 'whatnow:hand';
 
@@ -22,14 +20,6 @@ function write<T>(key: string, value: T) {
 	} catch {
 		// Storage can be disabled by a browser policy. The app still works without persistence.
 	}
-}
-
-export function loadApiKeys(): ApiKeys {
-	return read<ApiKeys>(KEYS) ?? {};
-}
-
-export function saveApiKeys(keys: ApiKeys) {
-	write(KEYS, keys);
 }
 
 export function loadDismissed(): Set<string> {

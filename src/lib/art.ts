@@ -1,7 +1,6 @@
 import { browser } from '$app/environment';
 import { lookupGameMeta } from '$lib/remote-meta';
 import type {
-	ApiKeys,
 	ArtLookup,
 	GameMedia,
 	GameMeta,
@@ -116,20 +115,16 @@ export async function loadLibretroMedia(game: ArtLookup): Promise<MediaItem[]> {
 	return loaded.filter((item): item is MediaItem => Boolean(item));
 }
 
-export async function remoteMeta(game: ArtLookup, keys: ApiKeys): Promise<GameMeta> {
+export async function remoteMeta(game: ArtLookup): Promise<GameMeta> {
 	const cached = readCachedMeta(game);
 	if (cached?.items.length) return cached;
 
 	try {
-		const result = await lookupGameMeta(
-			game.name,
-			keys,
-			{
-				releaseDate: game.releaseDate,
-				searchAs: game.searchAs,
-				igdbId: game.igdbId
-			}
-		);
+		const result = await lookupGameMeta(game.name, {
+			releaseDate: game.releaseDate,
+			searchAs: game.searchAs,
+			igdbId: game.igdbId
+		});
 		if (result.items.length || result.ratings.scores.length) writeCachedMeta(game, result);
 		return result;
 	} catch {
@@ -137,19 +132,19 @@ export async function remoteMeta(game: ArtLookup, keys: ApiKeys): Promise<GameMe
 	}
 }
 
-export async function loadGameMeta(game: ArtLookup, keys: ApiKeys): Promise<GameMeta> {
+export async function loadGameMeta(game: ArtLookup): Promise<GameMeta> {
 	const libretro = await loadLibretroMedia(game);
 	if (libretro.length) return { items: libretro, ratings: { scores: [] } };
 
-	return remoteMeta(game, keys);
+	return remoteMeta(game);
 }
 
-export async function loadGameMedia(game: ArtLookup, keys: ApiKeys): Promise<GameMedia> {
-	const meta = await loadGameMeta(game, keys);
+export async function loadGameMedia(game: ArtLookup): Promise<GameMedia> {
+	const meta = await loadGameMeta(game);
 	return { items: meta.items };
 }
 
-export async function loadMetaBatch(lookups: ArtLookup[], keys: ApiKeys): Promise<Record<string, GameMeta>> {
+export async function loadMetaBatch(lookups: ArtLookup[]): Promise<Record<string, GameMeta>> {
 	if (!browser || !lookups.length) return {};
 
 	const results: Record<string, GameMeta> = {};
@@ -165,7 +160,7 @@ export async function loadMetaBatch(lookups: ArtLookup[], keys: ApiKeys): Promis
 		try {
 			const batch = await Promise.all(
 				uncached.map(async (lookup) => {
-					const meta = await lookupGameMeta(lookup.name, keys, {
+					const meta = await lookupGameMeta(lookup.name, {
 						releaseDate: lookup.releaseDate,
 						searchAs: lookup.searchAs,
 						igdbId: lookup.igdbId

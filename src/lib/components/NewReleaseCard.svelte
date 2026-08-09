@@ -7,24 +7,22 @@
 		loadGameMeta,
 		slugId
 	} from '$lib/art';
-	import { normalizeImageUrl } from '$lib/html';
-	import type { ApiKeys, GameMeta, MetacriticRelease } from '$lib/types';
+	import { normalizeImageUrl, pickDisplayImageUrl } from '$lib/html';
+	import type { GameMeta, MetacriticRelease } from '$lib/types';
 
 	let {
 		release,
 		meta,
-		keys,
 		timing,
 		onOpenViewer
 	}: {
 		release: MetacriticRelease;
 		meta?: GameMeta;
-		keys: ApiKeys;
 		timing: { main: string; sub: string };
 		onOpenViewer: (start?: number) => void;
 	} = $props();
 
-	let posterUrl = $state<string | undefined>(normalizeImageUrl(release.imageUrl));
+	let posterUrl = $state<string | undefined>();
 	let posterReady = $state(false);
 	let artLoading = $state(false);
 
@@ -53,47 +51,59 @@
 	const cover = $derived(coverItem(items));
 	const gallery = $derived(galleryItems(items));
 
-	async function resolvePoster(url: string) {
+	async function resolvePoster(url: string): Promise<boolean> {
 		const cached = cachedImageLoad(url);
 		if (cached !== undefined) {
 			posterReady = cached;
 			artLoading = false;
-			return;
+			return cached;
 		}
 		artLoading = true;
-		posterReady = await imageLoads(url);
+		const ok = await imageLoads(url);
+		posterReady = ok;
 		artLoading = false;
+		return ok;
+	}
+
+	async function tryRemotePoster(lookup: {
+		id: string;
+		name: string;
+		releaseDate?: string;
+	}) {
+		const result = await loadGameMeta(lookup);
+		const hit = coverItem(result.items);
+		const url = pickDisplayImageUrl(hit?.url);
+		if (!url) return false;
+		posterUrl = url;
+		return resolvePoster(url);
 	}
 
 	$effect(() => {
-		const fromRelease = normalizeImageUrl(release.imageUrl);
-		const fromMeta = normalizeImageUrl(cover?.url);
-		const next = fromMeta ?? fromRelease;
-		posterUrl = next;
-
-		if (next) {
-			void resolvePoster(next);
-			return;
-		}
-
-		posterReady = false;
-		artLoading = true;
 		const lookup = {
 			id: slugId(release.name),
 			name: release.name,
 			releaseDate: release.releaseDate
 		};
+		const next = pickDisplayImageUrl(cover?.url, release.imageUrl);
 		let cancelled = false;
-		void loadGameMeta(lookup, keys).then((result) => {
-			if (cancelled) return;
-			const hit = coverItem(result.items);
-			if (hit?.url) {
-				posterUrl = hit.url;
-				void resolvePoster(hit.url);
+
+		async function resolve() {
+			if (next) {
+				posterUrl = next;
+				const ok = await resolvePoster(next);
+				if (cancelled) return;
+				if (ok) return;
 			} else {
-				artLoading = false;
+				posterReady = false;
 			}
-		});
+
+			artLoading = true;
+			const remoteOk = await tryRemotePoster(lookup);
+			if (cancelled) return;
+			if (!remoteOk) artLoading = false;
+		}
+
+		void resolve();
 		return () => {
 			cancelled = true;
 		};

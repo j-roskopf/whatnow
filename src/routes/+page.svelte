@@ -2,21 +2,20 @@
 	import { onMount } from 'svelte';
 	import BrowseTabs from '$lib/components/BrowseTabs.svelte';
 	import GameCard from '$lib/components/GameCard.svelte';
-	import KeySettings from '$lib/components/KeySettings.svelte';
 	import NewReleasesRail from '$lib/components/NewReleasesRail.svelte';
+	import PinnedShelf from '$lib/components/PinnedShelf.svelte';
 	import ServiceCatalog from '$lib/components/ServiceCatalog.svelte';
 	import UpcomingRail from '$lib/components/UpcomingRail.svelte';
-	import { clearArtCache } from '$lib/art';
 	import { UPCOMING } from '$lib/data';
 	import { loadPool } from '$lib/pool';
-	import { loadApiKeys, loadDismissed, loadHand, saveApiKeys, saveDismissed, saveHand } from '$lib/storage';
-	import type { ApiKeys, ArtStatus, BrowseTab, Game } from '$lib/types';
+	import { loadPinned } from '$lib/pinned';
+	import { loadDismissed, loadHand, saveDismissed, saveHand } from '$lib/storage';
+	import type { ArtStatus, BrowseTab, Game } from '$lib/types';
 
 	const today = new Date();
 	const dateKey = today.toISOString().slice(0, 10);
 
 	let ready = $state(false);
-	let keys = $state<ApiKeys>({});
 	let dismissed = $state<Set<string>>(new Set());
 	let hand = $state<string[]>([]);
 	let games = $state<Game[]>([]);
@@ -24,6 +23,7 @@
 	let artVersion = $state(0);
 	let artStatus = $state({ loaded: 0, missing: 0, noSource: 0 });
 	let tab = $state<BrowseTab>('tonight');
+	let pinnedMonthlyIds = $state<Set<string>>(new Set());
 
 	let shelf = $derived(
 		hand.map((id) => games.find((game) => game.id === id)).filter((game): game is Game => Boolean(game))
@@ -31,7 +31,9 @@
 	let pool = $derived(games.filter((game) => !dismissed.has(game.id)));
 
 	function deal() {
-		const available = games.filter((game) => !dismissed.has(game.id));
+		const available = games.filter(
+			(game) => !dismissed.has(game.id) && !pinnedMonthlyIds.has(game.id)
+		);
 		const pick = (items: Game[], count: number) =>
 			items
 				.slice()
@@ -68,14 +70,6 @@
 		saveHand(dateKey, hand);
 	}
 
-	function saveKeysAndReload(nextKeys: ApiKeys) {
-		keys = nextKeys;
-		saveApiKeys(nextKeys);
-		clearArtCache();
-		resetArtStatus();
-		artVersion += 1;
-	}
-
 	function redeal() {
 		hand = deal();
 		resetArtStatus();
@@ -86,7 +80,10 @@
 	function dismiss(game: Game) {
 		dismissed = new Set([...dismissed, game.id]);
 		hand = hand.filter((id) => id !== game.id);
-		const replacement = games.filter((item) => !dismissed.has(item.id) && !hand.includes(item.id));
+		const replacement = games.filter(
+			(item) =>
+				!dismissed.has(item.id) && !hand.includes(item.id) && !pinnedMonthlyIds.has(item.id)
+		);
 		if (replacement.length) hand = [...hand, replacement[Math.floor(Math.random() * replacement.length)].id];
 		resetArtStatus();
 		artVersion += 1;
@@ -109,8 +106,11 @@
 	}
 
 	onMount(async () => {
-		keys = loadApiKeys();
 		dismissed = loadDismissed();
+
+		const pinned = await loadPinned();
+		const monthly = pinned.sections.find((section) => section.id === 'psplus-monthly');
+		pinnedMonthlyIds = new Set(monthly?.entries.map((entry) => entry.id) ?? []);
 
 		const fast = await loadPool({ fast: true });
 		games = fast.games;
@@ -150,11 +150,10 @@
 		the game running. Click any cover for screenshots.
 	</p>
 
-	<KeySettings initialKeys={keys} onSave={saveKeysAndReload} />
-
 	<BrowseTabs active={tab} onChange={(next) => (tab = next)} />
 
 	{#if tab === 'tonight'}
+		<PinnedShelf />
 		<div class="slab">
 			<h2>Tonight's shelf</h2>
 			<div class="line"></div>
@@ -169,7 +168,6 @@
 				{#each shelf as game (game.id + ':' + artVersion)}
 					<GameCard
 						game={game}
-						keys={keys}
 						onArtStatus={recordArtStatus}
 						onDismiss={dismiss}
 					/>
@@ -178,22 +176,22 @@
 		</div>
 	{:else if tab === 'new'}
 		<div class="slab"><h2>New releases</h2><div class="line"></div></div>
-		<NewReleasesRail {today} keys={keys} />
+		<NewReleasesRail {today} />
 	{:else if tab === 'soon'}
 		<div class="slab"><h2>Landing soon</h2><div class="line"></div></div>
-		<UpcomingRail games={UPCOMING} {today} keys={keys} />
+		<UpcomingRail games={UPCOMING} {today} />
 	{:else if tab === 'psplus'}
 		<div class="slab"><h2>PS Plus catalog</h2><div class="line"></div></div>
-		<ServiceCatalog service="psplus" keys={keys} />
+		<ServiceCatalog service="psplus" />
 	{:else if tab === 'gamepass'}
 		<div class="slab"><h2>Game Pass catalog</h2><div class="line"></div></div>
-		<ServiceCatalog service="gamepass" keys={keys} />
+		<ServiceCatalog service="gamepass" />
 	{:else if tab === 'modern'}
 		<div class="slab"><h2>Modern</h2><div class="line"></div></div>
-		<ServiceCatalog service="modern" keys={keys} />
+		<ServiceCatalog service="modern" />
 	{:else if tab === 'retro'}
 		<div class="slab"><h2>Retro</h2><div class="line"></div></div>
-		<ServiceCatalog service="retro" keys={keys} />
+		<ServiceCatalog service="retro" />
 	{/if}
 
 	<footer>

@@ -1,4 +1,4 @@
-import type { ApiKeys, CatalogResponse, CatalogSection, CatalogService, GameRatings } from '$lib/types';
+import type { CatalogResponse, CatalogSection, CatalogService, GameRatings } from '$lib/types';
 import { lookupGameRatings } from '$lib/remote-meta';
 
 function catalogFile(
@@ -29,13 +29,12 @@ export async function loadCatalog(
 }
 
 export async function loadCatalogRatings(
-	lookups: { id: string; name: string }[],
-	keys: ApiKeys
+	lookups: { id: string; name: string }[]
 ): Promise<Record<string, GameRatings>> {
 	if (!lookups.length) return {};
 
 	try {
-		return await lookupGameRatings(lookups, keys);
+		return await lookupGameRatings(lookups);
 	} catch {
 		return {};
 	}

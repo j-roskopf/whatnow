@@ -225,6 +225,18 @@ async function fetchPsPlusLibrary(): Promise<CatalogResponse> {
 	};
 }
 
+export async function fetchPsPlusMonthlyOnly(): Promise<CatalogEntry[]> {
+	const monthly = await fetchPsPlusImagic(PSPLUS_IMAGIC.monthly);
+	const entries = dedupePsPlus(
+		monthly.map((game) => imagicToEntry(game, 'new', 'Monthly'))
+	);
+	return entries.sort((a, b) => {
+		const ad = a.releaseDate ? new Date(a.releaseDate).getTime() : 0;
+		const bd = b.releaseDate ? new Date(b.releaseDate).getTime() : 0;
+		return bd - ad;
+	});
+}
+
 async function fetchPsPlusNew(): Promise<CatalogResponse> {
 	const monthly = await fetchPsPlusImagic(PSPLUS_IMAGIC.monthly);
 	const catalog = await fetchPsPlusImagic(PSPLUS_IMAGIC.catalog);
@@ -422,6 +434,10 @@ function serviceLabels(entry: CatalogEntry): { systemLabel: string; where: strin
 		const tier = entry.tier ?? 'Extra';
 		const where = /plus/i.test(tier) ? tier : `PS Plus ${tier}`;
 		return { systemLabel: 'PS Plus', where };
+	}
+	if (entry.service === 'humble' || id.startsWith('humble-')) {
+		const tier = entry.tier ?? 'Humble';
+		return { systemLabel: 'Humble', where: tier };
 	}
 	return {
 		systemLabel: entry.systemLabel ?? 'Retro',
