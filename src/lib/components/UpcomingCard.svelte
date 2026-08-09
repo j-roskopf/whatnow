@@ -8,6 +8,7 @@
 		slugId
 	} from '$lib/art';
 	import { pickDisplayImageUrl } from '$lib/html';
+	import { storeUrlFromPlatformsLabel } from '$lib/store-urls';
 	import type { GameMeta, UpcomingGame } from '$lib/types';
 
 	let {
@@ -50,6 +51,7 @@
 	}
 
 	const colors = $derived(hues(game.name));
+	const storeUrl = $derived(storeUrlFromPlatformsLabel(game.name, game.platforms));
 	const items = $derived(meta?.items ?? []);
 	const ratings = $derived(meta?.ratings);
 	const cover = $derived(coverItem(items));
@@ -134,7 +136,13 @@
 			<span class="loading-mark" aria-label="Loading artwork">···</span>
 		{/if}
 	</div>
-	<div class="n">{game.name}</div>
+	<div class="n">
+		{#if storeUrl}
+			<a href={storeUrl} target="_blank" rel="noopener noreferrer">{game.name}</a>
+		{:else}
+			{game.name}
+		{/if}
+	</div>
 	{#if ratings?.scores.length}
 		<div class="ratings rail-ratings">
 			{#each ratings.scores as score}

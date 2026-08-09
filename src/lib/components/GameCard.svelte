@@ -2,6 +2,7 @@
 	import { onMount } from 'svelte';
 	import { coverItem, galleryItems, loadGameMeta, screenshotItem } from '$lib/art';
 	import { normalizeImageUrl } from '$lib/html';
+	import { resolveGameStoreUrl } from '$lib/store-urls';
 	import MediaViewer from '$lib/components/MediaViewer.svelte';
 	import type { ArtStatus, Game, GameRatings, MediaItem } from '$lib/types';
 
@@ -47,6 +48,7 @@
 	}
 
 	let colors = $derived(hues(game.name));
+	const storeUrl = $derived(resolveGameStoreUrl(game));
 	let cover = $derived(coverItem(media));
 	let snap = $derived(screenshotItem(media));
 	let gallery = $derived(galleryItems(media));
@@ -142,7 +144,13 @@
 		{/if}
 	</div>
 	<div class="body">
-		<h3>{game.name}</h3>
+		<h3>
+			{#if storeUrl}
+				<a href={storeUrl} target="_blank" rel="noopener noreferrer">{game.name}</a>
+			{:else}
+				{game.name}
+			{/if}
+		</h3>
 		{#if ratings.scores.length}
 			<div class="ratings">
 				{#each ratings.scores as score}

@@ -1,4 +1,5 @@
 import type { CatalogEntry } from '$lib/types';
+import { mobyGamesSearchUrl } from '$lib/store-urls';
 
 const LIBRETRO = 'https://thumbnails.libretro.com';
 const USER_AGENT = 'Mozilla/5.0 (compatible; WhatNow/1.0)';
@@ -111,7 +112,8 @@ export async function fetchLibretroSystemCatalog(
 			platforms: 'Emulated',
 			imageUrl: libretroMediaUrl(systemPath, 'Named_Boxarts', file),
 			snapUrl: libretroMediaUrl(systemPath, 'Named_Snaps', file),
-			tier: systemLabel
+			tier: systemLabel,
+			storeUrl: mobyGamesSearchUrl(name)
 		};
 	});
 }

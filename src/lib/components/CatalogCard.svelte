@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { cachedImageLoad, coverItem, imageLoads, loadGameMeta } from '$lib/art';
 	import { normalizeImageUrl, pickDisplayImageUrl } from '$lib/html';
+	import { resolveCatalogStoreUrl } from '$lib/store-urls';
 	import type { CatalogEntry, GameRatings } from '$lib/types';
 
 	let { entry, ratings, showSummary = true }: {
@@ -38,6 +39,7 @@
 	let colors = $derived(hues(entry.name));
 	const isRetro = $derived(Boolean(entry.snapUrl));
 	const displayRatings = $derived(ratings ?? entry.ratings);
+	const storeUrl = $derived(resolveCatalogStoreUrl(entry));
 
 	$effect(() => {
 		coverUrl = normalizeImageUrl(entry.imageUrl);
@@ -145,8 +147,8 @@
 	</div>
 	<div class="body">
 		<h3>
-			{#if entry.storeUrl}
-				<a href={entry.storeUrl} target="_blank" rel="noopener noreferrer">{entry.name}</a>
+			{#if storeUrl}
+				<a href={storeUrl} target="_blank" rel="noopener noreferrer">{entry.name}</a>
 			{:else}
 				{entry.name}
 			{/if}

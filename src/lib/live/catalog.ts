@@ -13,6 +13,7 @@ import { shuffle } from '$lib/curation';
 import { fetchLibretroSystemCatalog } from '$lib/live/libretro-catalog';
 import { fetchModernRetailLibrary, fetchModernRetailPicks } from '$lib/live/modern';
 import { fetchPsStoreLastChance } from '$lib/live/ps-store';
+import { gamePassStoreUrl } from '$lib/store-urls';
 
 const USER_AGENT = 'Mozilla/5.0 (compatible; WhatNow/1.0)';
 const CACHE_TTL_MS = 30 * 60 * 1000;
@@ -105,6 +106,7 @@ async function fetchGamePassProducts(productIds: string[]): Promise<CatalogEntry
 				imageUrl: imageUrl ? `https:${imageUrl}` : undefined,
 				releaseDate,
 				platforms: 'Xbox · PC · Cloud',
+				storeUrl: gamePassStoreUrl(localized.ProductTitle, product.ProductId),
 				tier: 'Game Pass'
 			});
 		}
@@ -463,7 +465,8 @@ function catalogEntryToGame(entry: CatalogEntry, reason: GameReason): Game {
 		system: entry.system,
 		file: entry.file,
 		imageUrl: entry.imageUrl,
-		snapUrl: entry.snapUrl
+		snapUrl: entry.snapUrl,
+		storeUrl: entry.storeUrl
 	};
 }
 

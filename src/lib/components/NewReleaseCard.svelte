@@ -8,6 +8,7 @@
 		slugId
 	} from '$lib/art';
 	import { normalizeImageUrl, pickDisplayImageUrl, localReleaseArtPaths } from '$lib/html';
+	import { storeUrlForPlatform } from '$lib/store-urls';
 	import type { GameMeta, MetacriticRelease } from '$lib/types';
 
 	let {
@@ -46,6 +47,7 @@
 	}
 
 	const colors = $derived(hues(release.name));
+	const storeUrl = $derived(storeUrlForPlatform(release.name, release.platform));
 	const items = $derived(meta?.items ?? []);
 	const ratings = $derived(meta?.ratings);
 	const cover = $derived(coverItem(items));
@@ -155,7 +157,7 @@
 		{/if}
 	</div>
 	<div class="n">
-		<a href={release.url} target="_blank" rel="noopener noreferrer">{release.name}</a>
+		<a href={storeUrl} target="_blank" rel="noopener noreferrer">{release.name}</a>
 	</div>
 	{#if ratings?.scores.length}
 		<div class="ratings rail-ratings">

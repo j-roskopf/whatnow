@@ -1,6 +1,7 @@
 import { fetchMetacriticAvailableCatalog } from '$lib/server/metacritic';
 import { GOOD_RECEPTION_MIN, curateByReception } from '$lib/curation';
 import type { CatalogEntry, CatalogResponse, GameRatings, MetacriticPlatform } from '$lib/types';
+import { storeUrlForPlatform, storeUrlForPlatformKeys } from '$lib/store-urls';
 
 const MODERN_PLATFORM_LABELS: Record<MetacriticPlatform, string> = {
 	ps5: 'PS5',
@@ -53,6 +54,7 @@ export async function fetchModernRetailLibrary(options?: {
 			if (existing) {
 				existing.platforms = mergePlatformLabels(existing.platforms, label);
 				existing.platformKeys = mergePlatformKeys(existing.platformKeys, platform);
+				existing.storeUrl = storeUrlForPlatformKeys(existing.name, existing.platformKeys);
 				if (!existing.imageUrl && release.imageUrl) existing.imageUrl = release.imageUrl;
 				if (release.score != null && !existing.ratings) {
 					existing.ratings = ratingsFromScore(release.score);
@@ -70,7 +72,7 @@ export async function fetchModernRetailLibrary(options?: {
 				platformKeys: [platform],
 				imageUrl: release.imageUrl,
 				releaseDate: release.releaseDate,
-				storeUrl: release.url,
+				storeUrl: storeUrlForPlatform(release.name, platform),
 				tier: release.score != null ? String(Math.round(release.score)) : undefined,
 				summary: release.summary,
 				ratings: release.score != null ? ratingsFromScore(release.score) : undefined
