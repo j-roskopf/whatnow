@@ -1,4 +1,5 @@
-import adapter from '@sveltejs/adapter-vercel';
+import adapterStatic from '@sveltejs/adapter-static';
+import adapterVercel from '@sveltejs/adapter-vercel';
 import { vitePreprocess } from '@sveltejs/vite-plugin-svelte';
 
 /** @type {import('@sveltejs/kit').Config} */
@@ -9,7 +10,9 @@ const config = {
 			filename.split(/[/\\]/).includes('node_modules') ? undefined : true
 	},
 	kit: {
-		adapter: adapter()
+		adapter: process.env.VERCEL
+			? adapterVercel()
+			: adapterStatic({ strict: false })
 	}
 };
 
