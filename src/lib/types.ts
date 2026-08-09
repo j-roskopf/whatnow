@@ -64,6 +64,8 @@ export interface Game {
 	why: string;
 	system?: string;
 	file?: string;
+	imageUrl?: string;
+	snapUrl?: string;
 }
 
 export interface PoolResponse {

@@ -1,5 +1,6 @@
 import { load, type Cheerio, type Element } from 'cheerio';
 import { getGameReviews } from 'unofficial-metacritic';
+import { decodeHtmlEntities } from '$lib/html';
 import { pickBestNameMatch } from '$lib/igdb';
 import type {
 	MetacriticPlatform,
@@ -138,7 +139,8 @@ function firstSrcsetUrl(srcset?: string): string | undefined {
 }
 
 function upscaleMetacriticImage(url: string): string {
-	return url
+	const decoded = decodeHtmlEntities(url);
+	return decoded
 		.replace(/([?&])width=\d+/i, '$1width=300')
 		.replace(/([?&])height=\d+/i, '$1height=450');
 }
@@ -233,7 +235,7 @@ function parseBrowseReleases(html: string, platform: MetacriticPlatform): Metacr
 	return releases;
 }
 
-async function fetchGamePageImage(slug: string): Promise<string | undefined> {
+export async function fetchMetacriticGameImage(slug: string): Promise<string | undefined> {
 	const pageUrl = `${BASE_URL}/game/${slug}/`;
 	try {
 		const response = await fetch(pageUrl, {
@@ -265,7 +267,7 @@ async function enrichReleaseImages(releases: MetacriticRelease[]): Promise<Metac
 					updates.set(release.id, cached);
 					return;
 				}
-				const imageUrl = await fetchGamePageImage(release.id);
+				const imageUrl = await fetchMetacriticGameImage(release.id);
 				if (imageUrl) {
 					gameImageCache.set(release.id, imageUrl);
 					updates.set(release.id, imageUrl);

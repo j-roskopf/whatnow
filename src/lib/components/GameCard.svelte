@@ -1,11 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import {
-		coverItem,
-		galleryItems,
-		loadGameMeta,
-		screenshotItem
-	} from '$lib/art';
+	import { coverItem, galleryItems, loadGameMeta, screenshotItem } from '$lib/art';
+	import { normalizeImageUrl } from '$lib/html';
 	import MediaViewer from '$lib/components/MediaViewer.svelte';
 	import type { ApiKeys, ArtStatus, Game, GameRatings, MediaItem } from '$lib/types';
 
@@ -63,15 +59,42 @@
 		viewerOpen = true;
 	}
 
+	function catalogMedia(game: Game): MediaItem[] {
+		const items: MediaItem[] = [];
+		const snap = normalizeImageUrl(game.snapUrl);
+		const cover = normalizeImageUrl(game.imageUrl);
+		if (snap) {
+			items.push({ url: snap, fit: 'cover', source: 'libretro', kind: 'screenshot' });
+		}
+		if (cover) {
+			items.push({
+				url: cover,
+				fit: isRetro ? 'contain' : 'cover',
+				source: isRetro ? 'libretro' : 'rawg',
+				kind: 'cover'
+			});
+		}
+		return items;
+	}
+
 	onMount(async () => {
 		if (ratingsProp?.scores.length) ratings = ratingsProp;
 
+		const catalog = catalogMedia(game);
+		if (catalog.length) {
+			media = catalog;
+			loading = false;
+			onArtStatus?.('loaded');
+		}
+
+		if (catalog.length && !keys.igdbClientId && !keys.steamGridDb) return;
+
 		const meta = await loadGameMeta(game, keys);
-		media = meta.items;
-		if (!ratingsProp?.scores.length) ratings = meta.ratings;
+		if (meta.items.length) media = meta.items;
+		if (!ratingsProp?.scores.length && meta.ratings.scores.length) ratings = meta.ratings;
 		loading = false;
 
-		if (!onArtStatus) return;
+		if (!onArtStatus || catalog.length) return;
 		if (media.length) {
 			onArtStatus('loaded');
 			return;

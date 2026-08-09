@@ -7,6 +7,7 @@
 		loadGameMeta,
 		slugId
 	} from '$lib/art';
+	import { normalizeImageUrl } from '$lib/html';
 	import type { ApiKeys, GameMeta, MetacriticRelease } from '$lib/types';
 
 	let {
@@ -23,7 +24,7 @@
 		onOpenViewer: (start?: number) => void;
 	} = $props();
 
-	let posterUrl = $state<string | undefined>(release.imageUrl);
+	let posterUrl = $state<string | undefined>(normalizeImageUrl(release.imageUrl));
 	let posterReady = $state(false);
 	let artLoading = $state(false);
 
@@ -65,8 +66,8 @@
 	}
 
 	$effect(() => {
-		const fromRelease = release.imageUrl;
-		const fromMeta = cover?.url;
+		const fromRelease = normalizeImageUrl(release.imageUrl);
+		const fromMeta = normalizeImageUrl(cover?.url);
 		const next = fromMeta ?? fromRelease;
 		posterUrl = next;
 

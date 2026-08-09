@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { cachedImageLoad, coverItem, imageLoads, loadGameMeta } from '$lib/art';
+	import { normalizeImageUrl } from '$lib/html';
 	import type { ApiKeys, CatalogEntry, GameRatings } from '$lib/types';
 
 	let {
@@ -8,8 +9,8 @@
 		keys = {}
 	}: { entry: CatalogEntry; ratings?: GameRatings; keys?: ApiKeys } = $props();
 
-	let coverUrl = $state<string | undefined>(entry.imageUrl);
-	let snapUrl = $state<string | undefined>(entry.snapUrl);
+	let coverUrl = $state<string | undefined>(normalizeImageUrl(entry.imageUrl));
+	let snapUrl = $state<string | undefined>(normalizeImageUrl(entry.snapUrl));
 	let coverReady = $state(false);
 	let snapReady = $state(false);
 	let artLoading = $state(false);
@@ -38,8 +39,8 @@
 	const displayRatings = $derived(ratings ?? entry.ratings);
 
 	$effect(() => {
-		coverUrl = entry.imageUrl;
-		snapUrl = entry.snapUrl;
+		coverUrl = normalizeImageUrl(entry.imageUrl);
+		snapUrl = normalizeImageUrl(entry.snapUrl);
 	});
 
 	$effect(() => {

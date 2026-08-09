@@ -1,3 +1,4 @@
+import { decodeHtmlEntities } from '$lib/html';
 import type { MetacriticPlatform, MetacriticRelease, MetacriticReleasesResponse } from '$lib/types';
 
 const BASE_URL = 'https://www.metacritic.com';
@@ -28,7 +29,8 @@ function firstSrcsetUrl(srcset?: string | null): string | undefined {
 }
 
 function upscaleMetacriticImage(url: string): string {
-	return url
+	const decoded = decodeHtmlEntities(url);
+	return decoded
 		.replace(/([?&])width=\d+/i, '$1width=300')
 		.replace(/([?&])height=\d+/i, '$1height=450');
 }

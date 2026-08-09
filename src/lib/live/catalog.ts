@@ -467,7 +467,9 @@ function catalogEntryToGame(entry: CatalogEntry, reason: GameReason): Game {
 		platforms: entry.platforms ?? '',
 		why: entry.summary ?? defaultWhy(reason, entry),
 		system: entry.system,
-		file: entry.file
+		file: entry.file,
+		imageUrl: entry.imageUrl,
+		snapUrl: entry.snapUrl
 	};
 }
 

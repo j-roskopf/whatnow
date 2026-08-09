@@ -1,13 +1,13 @@
 <script lang="ts">
-	import { coverItem, galleryItems, loadMetaBatch, slugId } from '$lib/art';
+	import { coverItem, galleryItems, slugId } from '$lib/art';
 	import MediaViewer from '$lib/components/MediaViewer.svelte';
-	import type { ApiKeys, GameMeta, MediaItem, UpcomingGame } from '$lib/types';
+	import { loadUpcomingMeta } from '$lib/upcoming';
+	import type { ApiKeys, GameMeta, UpcomingGame } from '$lib/types';
 
 	let {
 		games,
-		today,
-		keys
-	}: { games: UpcomingGame[]; today: Date; keys: ApiKeys } = $props();
+		today
+	}: { games: UpcomingGame[]; today: Date; keys?: ApiKeys } = $props();
 
 	let meta = $state<Record<string, GameMeta>>({});
 	let viewerGame = $state<UpcomingGame | null>(null);
@@ -36,16 +36,6 @@
 		return Math.ceil((new Date(`${date}T12:00:00`).getTime() - today.getTime()) / 86400000);
 	}
 
-	function lookupFor(game: UpcomingGame) {
-		return {
-			id: slugId(game.name),
-			name: game.name,
-			releaseDate: game.date,
-			searchAs: game.searchAs,
-			igdbId: game.igdbId
-		};
-	}
-
 	function openViewer(game: UpcomingGame, start = 0) {
 		const items = galleryItems(meta[slugId(game.name)]?.items ?? []);
 		if (!items.length) return;
@@ -53,15 +43,12 @@
 		viewerStart = start;
 	}
 
-	async function loadAll(keysSnapshot: ApiKeys) {
-		const lookups = games.map(lookupFor);
-		const results = await loadMetaBatch(lookups, keysSnapshot);
-		meta = { ...meta, ...results };
+	async function loadAll() {
+		meta = await loadUpcomingMeta();
 	}
 
 	$effect(() => {
-		const keysSnapshot = keys;
-		loadAll(keysSnapshot);
+		void loadAll();
 	});
 </script>
 
