@@ -45,5 +45,5 @@
 	<a href="https://www.steamgriddb.com/profile/preferences/api" target="_blank" rel="noopener">SGDB</a>
 	<a href="https://dev.twitch.tv/console/apps" target="_blank" rel="noopener">IGDB</a>
 	<a href="https://rapidapi.com/opencritic-opencritic-default/api/opencritic-api" target="_blank" rel="noopener">OpenCritic</a>
-	<small>Keys stay on this device. IGDB gives critics/players + Metacritic links. OpenCritic key is optional (free RapidAPI tier).</small>
+	<small>Optional overrides — server keys are used when set in Vercel. IGDB gives critics/players + Metacritic links. OpenCritic key is optional (free RapidAPI tier).</small>
 </div>

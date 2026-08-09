@@ -87,8 +87,6 @@
 			onArtStatus?.('loaded');
 		}
 
-		if (catalog.length && !keys.igdbClientId && !keys.steamGridDb) return;
-
 		const meta = await loadGameMeta(game, keys);
 		if (meta.items.length) media = meta.items;
 		if (!ratingsProp?.scores.length && meta.ratings.scores.length) ratings = meta.ratings;
