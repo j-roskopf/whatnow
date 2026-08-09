@@ -10,10 +10,17 @@
 	import { loadPool } from '$lib/pool';
 	import { loadPinned } from '$lib/pinned';
 	import { loadDismissed, loadHand, saveDismissed, saveHand } from '$lib/storage';
-	import type { ArtStatus, BrowseTab, Game } from '$lib/types';
+	import type { ArtStatus, BrowseTab, Game, GameReason } from '$lib/types';
 
 	const today = new Date();
 	const dateKey = today.toISOString().slice(0, 10);
+
+	const SHELF_SIZE = 10;
+	const SHELF_MIX: Partial<Record<GameReason, number>> = {
+		free: 4,
+		modern: 3,
+		retro: 3
+	};
 
 	let ready = $state(false);
 	let dismissed = $state<Set<string>>(new Set());
@@ -25,8 +32,6 @@
 	let tab = $state<BrowseTab>('tonight');
 	let pinnedMonthlyIds = $state<Set<string>>(new Set());
 
-	const SHELF_SIZE = 10;
-
 	let shelf = $derived(
 		hand.map((id) => games.find((game) => game.id === id)).filter((game): game is Game => Boolean(game))
 	);
@@ -36,30 +41,83 @@
 		return pinnedMonthlyIds.has(game.id) || game.tag === 'Monthly';
 	}
 
-	function deal() {
-		const available = games.filter(
-			(game) => !dismissed.has(game.id) && !isMonthlyPsPlus(game)
-		);
-		const pick = (items: Game[], count: number) =>
-			items
-				.slice()
-				.sort(() => Math.random() - 0.5)
-				.slice(0, count)
-				.map((game) => game.id);
+	function pickIds(items: Game[], count: number) {
+		return items
+			.slice()
+			.sort(() => Math.random() - 0.5)
+			.slice(0, count)
+			.map((game) => game.id);
+	}
 
-		let result = [
-			...pick(available.filter((game) => game.reason === 'leaving'), 2),
-			...pick(available.filter((game) => game.reason === 'free'), 2),
-			...pick(available.filter((game) => game.reason === 'modern'), 3),
-			...pick(available.filter((game) => game.reason === 'retro'), 3)
-		];
+	function availablePool(excludeIds: string[] = []) {
+		return games.filter(
+			(game) =>
+				!dismissed.has(game.id) &&
+				!excludeIds.includes(game.id) &&
+				!isMonthlyPsPlus(game) &&
+				game.reason !== 'leaving'
+		);
+	}
+
+	function deal() {
+		const available = availablePool();
+		let result: string[] = [];
+
+		for (const [reason, count] of Object.entries(SHELF_MIX) as [GameReason, number][]) {
+			result.push(
+				...pickIds(
+					available.filter((game) => game.reason === reason && !result.includes(game.id)),
+					count
+				)
+			);
+		}
 
 		if (result.length < SHELF_SIZE) {
 			const rest = available.filter((game) => !result.includes(game.id));
-			result = result.concat(pick(rest, SHELF_SIZE - result.length));
+			result = result.concat(pickIds(rest, SHELF_SIZE - result.length));
 		}
 
 		return result.slice(0, SHELF_SIZE);
+	}
+
+	function handHasMix(ids: string[]): boolean {
+		const handGames = ids
+			.map((id) => games.find((game) => game.id === id))
+			.filter((game): game is Game => Boolean(game));
+		if (handGames.length < SHELF_SIZE) return false;
+
+		for (const [reason, min] of Object.entries(SHELF_MIX) as [GameReason, number][]) {
+			const poolCount = games.filter((g) => g.reason === reason && !isMonthlyPsPlus(g)).length;
+			if (poolCount < min) continue;
+			const inHand = handGames.filter((g) => g.reason === reason).length;
+			if (inHand < Math.min(min, poolCount)) return false;
+		}
+		return true;
+	}
+
+	function pickReplacement(currentHand: string[]): string | undefined {
+		const handGames = currentHand
+			.map((id) => games.find((game) => game.id === id))
+			.filter((game): game is Game => Boolean(game));
+		const counts: Record<GameReason, number> = {
+			leaving: 0,
+			free: 0,
+			modern: 0,
+			retro: 0
+		};
+		for (const game of handGames) counts[game.reason] += 1;
+
+		const deficits = (Object.entries(SHELF_MIX) as [GameReason, number][])
+			.filter(([reason, want]) => counts[reason] < want)
+			.sort((a, b) => counts[a[0]] - counts[b[0]]);
+
+		for (const [reason] of deficits) {
+			const pool = availablePool(currentHand).filter((game) => game.reason === reason);
+			if (pool.length) return pool[Math.floor(Math.random() * pool.length)].id;
+		}
+
+		const rest = availablePool(currentHand);
+		return rest.length ? rest[Math.floor(Math.random() * rest.length)].id : undefined;
 	}
 
 	function resetArtStatus() {
@@ -87,13 +145,8 @@
 	function dismiss(game: Game) {
 		dismissed = new Set([...dismissed, game.id]);
 		hand = hand.filter((id) => id !== game.id);
-		const replacement = games.filter(
-			(item) =>
-				!dismissed.has(item.id) &&
-				!hand.includes(item.id) &&
-				!isMonthlyPsPlus(item)
-		);
-		if (replacement.length) hand = [...hand, replacement[Math.floor(Math.random() * replacement.length)].id];
+		const replacement = pickReplacement(hand);
+		if (replacement) hand = [...hand, replacement];
 		resetArtStatus();
 		artVersion += 1;
 		persist();
@@ -112,9 +165,9 @@
 		const valid =
 			saved?.filter((id) => {
 				const game = games.find((row) => row.id === id);
-				return game && !isMonthlyPsPlus(game);
+				return game && !isMonthlyPsPlus(game) && game.reason !== 'leaving';
 			}) ?? [];
-		if (valid.length >= SHELF_SIZE) return valid.slice(0, SHELF_SIZE);
+		if (valid.length >= SHELF_SIZE && handHasMix(valid)) return valid.slice(0, SHELF_SIZE);
 		return deal();
 	}
 
@@ -138,9 +191,10 @@
 			if (full.games.length <= games.length) return;
 			games = full.games;
 			poolSource = full.source;
-			const valid = hand.filter((id) => games.some((game) => game.id === id));
-			if (valid.length < hand.length) {
+			if (!handHasMix(hand) || hand.filter((id) => games.some((game) => game.id === id)).length < hand.length) {
 				hand = resolveHand();
+				resetArtStatus();
+				artVersion += 1;
 				persist();
 			}
 		}, 0);
@@ -157,11 +211,6 @@
 		<h1>What<br /><em>now</em></h1>
 		<div class="stamp">{today.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}</div>
 	</header>
-
-	<p class="sub">
-		Browse by service, sort by critic scores, or let tonight's shelf pick ten for you. Hover a retro cover to see
-		the game running. Click any cover for screenshots.
-	</p>
 
 	<BrowseTabs active={tab} onChange={(next) => (tab = next)} />
 

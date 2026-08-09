@@ -38,39 +38,43 @@
 
 <svelte:window onkeydown={onKeydown} />
 
-<div class="viewer" role="dialog" aria-modal="true" aria-label={`${title} media`}>
+<div
+	class="viewer"
+	role="dialog"
+	aria-modal="true"
+	aria-label={`${title} media`}
+	onclick={onClose}
+>
 	<button class="viewer-close" type="button" aria-label="Close" onclick={onClose}>✕</button>
-	<div class="viewer-head">
-		<h2>{title}</h2>
-		<span>{index + 1} / {items.length}</span>
-	</div>
-
-	<div class="viewer-stage">
-		{#if items.length > 1}
-			<button class="viewer-nav prev" type="button" aria-label="Previous" onclick={prev}>‹</button>
-		{/if}
-		<img
-			class={current.fit}
-			src={current.url}
-			alt={`${title} — ${current.kind}`}
-		/>
-		{#if items.length > 1}
-			<button class="viewer-nav next" type="button" aria-label="Next" onclick={next}>›</button>
-		{/if}
-	</div>
-
-	{#if items.length > 1}
-		<div class="viewer-strip" role="tablist" aria-label="Media thumbnails">
-			{#each items as item, itemIndex}
-				<button
-					type="button"
-					class:sel={itemIndex === index}
-					aria-label={`${item.kind} ${itemIndex + 1}`}
-					onclick={() => (index = itemIndex)}
-				>
-					<img src={item.url} alt="" />
-				</button>
-			{/each}
+	<div class="viewer-panel" onclick={(e) => e.stopPropagation()}>
+		<div class="viewer-head">
+			<h2>{title}</h2>
+			<span>{index + 1} / {items.length}</span>
 		</div>
-	{/if}
+
+		<div class="viewer-stage">
+			{#if items.length > 1}
+				<button class="viewer-nav prev" type="button" aria-label="Previous" onclick={prev}>‹</button>
+			{/if}
+			<img src={current.url} alt={`${title} — ${current.kind}`} />
+			{#if items.length > 1}
+				<button class="viewer-nav next" type="button" aria-label="Next" onclick={next}>›</button>
+			{/if}
+		</div>
+
+		{#if items.length > 1}
+			<div class="viewer-strip" role="tablist" aria-label="Media thumbnails">
+				{#each items as item, itemIndex}
+					<button
+						type="button"
+						class:sel={itemIndex === index}
+						aria-label={`${item.kind} ${itemIndex + 1}`}
+						onclick={() => (index = itemIndex)}
+					>
+						<img src={item.url} alt="" />
+					</button>
+				{/each}
+			</div>
+		{/if}
+	</div>
 </div>

@@ -143,7 +143,7 @@ mkdirSync('static/art/releases', { recursive: true });
 mkdirSync('static/art/upcoming', { recursive: true });
 
 console.log('Generating pool data…');
-writeJson(`${outDir}/pool-fast.json`, await fetchLivePool({ includeRetro: false }));
+writeJson(`${outDir}/pool-fast.json`, await fetchLivePool({ includeRetro: true, fast: true }));
 writeJson(`${outDir}/pool.json`, await fetchLivePool({ includeRetro: true }));
 
 console.log('Generating pinned subscriptions…');

@@ -498,19 +498,82 @@ async function fetchLiveNewEntries(): Promise<CatalogEntry[]> {
 
 const RETRO_POOL_PER_SYSTEM = 48;
 
-async function fetchLiveRetroPoolSample(): Promise<CatalogEntry[]> {
+async function fetchLiveRetroPoolSample(perSystem = RETRO_POOL_PER_SYSTEM): Promise<CatalogEntry[]> {
 	const catalogs = await Promise.all(RETRO_POOL_SYSTEMS.map((key) => fetchRetroLibrary(key)));
 	return dedupeByName(
-		catalogs.flatMap((catalog) => catalog.entries.slice(0, RETRO_POOL_PER_SYSTEM))
+		catalogs.flatMap((catalog) => catalog.entries.slice(0, perSystem))
 	);
 }
 
 const MODERN_POOL_SAMPLE = 80;
 const MODERN_POOL_PAGES = 3;
 
-async function fetchLiveModernPoolSample(): Promise<CatalogEntry[]> {
-	const catalog = await fetchModernRetailLibrary({ maxPages: MODERN_POOL_PAGES });
-	return shuffle(catalog.entries).slice(0, MODERN_POOL_SAMPLE);
+async function fetchLiveModernPoolSample(
+	maxPages = MODERN_POOL_PAGES,
+	sampleSize = MODERN_POOL_SAMPLE
+): Promise<CatalogEntry[]> {
+	const catalog = await fetchModernRetailLibrary({ maxPages });
+	return shuffle(catalog.entries).slice(0, sampleSize);
+}
+
+export async function fetchLivePool(options?: {
+	includeRetro?: boolean;
+	curate?: boolean;
+	fast?: boolean;
+}): Promise<PoolResponse> {
+	const includeRetro = options?.includeRetro ?? true;
+	const curate = options?.curate ?? false;
+	const fast = options?.fast ?? false;
+
+	if (includeRetro && curate && !fast && poolCache && Date.now() < poolCache.expires) {
+		return poolCache.data;
+	}
+
+	const retroPerSystem = fast ? 16 : RETRO_POOL_PER_SYSTEM;
+	const modernPages = fast ? 2 : MODERN_POOL_PAGES;
+	const modernSample = fast ? 48 : MODERN_POOL_SAMPLE;
+
+	const [leaving, newEntries, modern, retro] = await Promise.all([
+		fast ? Promise.resolve([]) : fetchLiveLeavingEntries(),
+		fetchLiveNewEntries(),
+		fetchLiveModernPoolSample(modernPages, modernSample),
+		includeRetro ? fetchLiveRetroPoolSample(retroPerSystem) : Promise.resolve([])
+	]);
+
+	const games = [
+		...(fast ? [] : leaving.map((entry) => catalogEntryToGame(entry, 'leaving'))),
+		...newEntries.map((entry) => catalogEntryToGame(entry, 'free')),
+		...modern.map((entry) => catalogEntryToGame(entry, 'modern')),
+		...retro.map((entry) => catalogEntryToGame(entry, 'retro'))
+	];
+
+	const source = fast
+		? 'Recently added subscriptions, modern retail & retro (fast load)'
+		: curate
+			? includeRetro
+				? 'Well-received · 75+ critics · subscriptions, modern & retro'
+				: 'Well-received · 75+ critics · subscriptions & modern'
+			: includeRetro
+				? 'Subscriptions, modern retail & libretro catalogs'
+				: 'Subscriptions & modern retail (loading retro…)';
+
+	const data: PoolResponse = {
+		games,
+		fetchedAt: new Date().toISOString(),
+		source,
+		counts: {
+			leaving: fast ? 0 : leaving.length,
+			free: newEntries.length,
+			modern: modern.length,
+			retro: retro.length
+		}
+	};
+
+	if (includeRetro && curate && !fast) {
+		poolCache = { expires: Date.now() + CACHE_TTL_MS, data };
+	}
+
+	return data;
 }
 
 async function buildRetroPickEntries(): Promise<CatalogEntry[]> {
@@ -520,65 +583,4 @@ async function buildRetroPickEntries(): Promise<CatalogEntry[]> {
 		section: 'picks' as const,
 		summary: defaultWhy('retro', entry)
 	}));
-}
-
-export async function fetchLivePool(options?: {
-	includeRetro?: boolean;
-	curate?: boolean;
-}): Promise<PoolResponse> {
-	const includeRetro = options?.includeRetro ?? true;
-	const curate = options?.curate ?? false;
-
-	if (includeRetro && curate && poolCache && Date.now() < poolCache.expires) {
-		return poolCache.data;
-	}
-
-	const [leaving, newEntries, modern, retro] = await Promise.all([
-		fetchLiveLeavingEntries(),
-		fetchLiveNewEntries(),
-		fetchLiveModernPoolSample(),
-		includeRetro ? fetchLiveRetroPoolSample() : Promise.resolve([])
-	]);
-
-	const process = async (entries: CatalogEntry[]) => entries;
-
-	const [curatedLeaving, curatedNew, curatedModern, curatedRetro] = await Promise.all([
-		process(leaving),
-		process(newEntries),
-		process(modern),
-		retro.length ? process(retro) : Promise.resolve([])
-	]);
-
-	const games = [
-		...curatedLeaving.map((entry) => catalogEntryToGame(entry, 'leaving')),
-		...curatedNew.map((entry) => catalogEntryToGame(entry, 'free')),
-		...curatedModern.map((entry) => catalogEntryToGame(entry, 'modern')),
-		...curatedRetro.map((entry) => catalogEntryToGame(entry, 'retro'))
-	];
-
-	const source = curate
-		? includeRetro
-			? 'Well-received · 75+ critics · subscriptions, modern & retro'
-			: 'Well-received · 75+ critics · subscriptions & modern'
-		: includeRetro
-			? 'Subscriptions, modern retail & libretro catalogs'
-			: 'Subscriptions & modern retail (loading retro…)';
-
-	const data: PoolResponse = {
-		games,
-		fetchedAt: new Date().toISOString(),
-		source,
-		counts: {
-			leaving: curatedLeaving.length,
-			free: curatedNew.length,
-			modern: curatedModern.length,
-			retro: curatedRetro.length
-		}
-	};
-
-	if (includeRetro && curate) {
-		poolCache = { expires: Date.now() + CACHE_TTL_MS, data };
-	}
-
-	return data;
 }
