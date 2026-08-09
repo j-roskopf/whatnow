@@ -1,6 +1,6 @@
 import type { CatalogEntry } from '$lib/types';
 
-const env = process.env;
+const env = typeof process !== 'undefined' ? process.env : {};
 
 const USER_AGENT = 'Mozilla/5.0 (compatible; WhatNow/1.0)';
 const GRAPHQL_URL = 'https://web.np.playstation.com/api/graphql/v1/op';

@@ -1,6 +1,16 @@
-import { fetchCatalog } from '$lib/live/catalog';
 import type { ApiKeys, CatalogResponse, CatalogSection, CatalogService, GameRatings } from '$lib/types';
 import { lookupGameRatings } from '$lib/remote-meta';
+
+function catalogFile(
+	service: CatalogService,
+	section: CatalogSection,
+	system?: string
+): string {
+	if (service === 'retro' && section === 'library' && system) {
+		return `/data/catalog/retro-library-${system}.json`;
+	}
+	return `/data/catalog/${service}-${section}.json`;
+}
 
 export async function loadCatalog(
 	service: CatalogService,
@@ -8,7 +18,11 @@ export async function loadCatalog(
 	system?: string
 ): Promise<CatalogResponse> {
 	try {
-		return await fetchCatalog(service, section, system);
+		const response = await fetch(catalogFile(service, section, system));
+		if (!response.ok) {
+			return { entries: [], fetchedAt: new Date().toISOString(), source: 'error' };
+		}
+		return (await response.json()) as CatalogResponse;
 	} catch {
 		return { entries: [], fetchedAt: new Date().toISOString(), source: 'error' };
 	}

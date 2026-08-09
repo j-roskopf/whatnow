@@ -4,7 +4,9 @@
 	"version": "0.0.1",
 	"type": "module",
 	"scripts": {
-		"dev": "vite dev",
+		"dev": "npm run generate-data && vite dev",
+		"generate-data": "tsx scripts/generate-data.ts",
+		"prebuild": "npm run generate-data",
 		"build": "vite build",
 		"preview": "vite preview",
 		"prepare": "svelte-kit sync || echo ''",
@@ -17,6 +19,7 @@
 		"@sveltejs/vite-plugin-svelte": "^7.1.2",
 		"svelte": "^5.56.1",
 		"svelte-check": "^4.6.0",
+		"tsx": "^4.20.5",
 		"typescript": "^6.0.3",
 		"vite": "^8.0.16"
 	},
