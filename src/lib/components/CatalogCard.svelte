@@ -1,15 +1,16 @@
 <script lang="ts">
 	import { cachedImageLoad, coverItem, imageLoads, loadGameMeta } from '$lib/art';
-	import { normalizeImageUrl } from '$lib/html';
+	import { normalizeImageUrl, pickDisplayImageUrl } from '$lib/html';
 	import type { CatalogEntry, GameRatings } from '$lib/types';
 
 	let { entry, ratings }: { entry: CatalogEntry; ratings?: GameRatings } = $props();
 
-	let coverUrl = $state<string | undefined>(normalizeImageUrl(entry.imageUrl));
-	let snapUrl = $state<string | undefined>(normalizeImageUrl(entry.snapUrl));
+	let coverUrl = $state<string | undefined>();
+	let snapUrl = $state<string | undefined>();
 	let coverReady = $state(false);
 	let snapReady = $state(false);
 	let artLoading = $state(false);
+	let triedRemote = $state(false);
 
 	function initials(name: string) {
 		return name
@@ -37,17 +38,20 @@
 	$effect(() => {
 		coverUrl = normalizeImageUrl(entry.imageUrl);
 		snapUrl = normalizeImageUrl(entry.snapUrl);
+		triedRemote = false;
 	});
 
 	$effect(() => {
-		if (coverUrl) return;
+		if (coverUrl || triedRemote) return;
 		const lookup = { id: entry.id, name: entry.name };
 		let cancelled = false;
 		artLoading = true;
 		void loadGameMeta(lookup).then((meta) => {
 			if (cancelled) return;
 			const cover = coverItem(meta.items);
-			if (cover) coverUrl = cover.url;
+			const url = pickDisplayImageUrl(cover?.url);
+			if (url) coverUrl = url;
+			triedRemote = true;
 			artLoading = false;
 		});
 		return () => {
@@ -67,7 +71,28 @@
 		const pending: Promise<void>[] = [];
 		if (cover && cachedCover === undefined) {
 			artLoading = true;
-			pending.push(imageLoads(cover).then((ok) => (coverReady = ok)));
+			pending.push(
+				imageLoads(cover).then(async (ok) => {
+					if (ok) {
+						coverReady = true;
+						return;
+					}
+					if (triedRemote) {
+						coverReady = false;
+						return;
+					}
+					triedRemote = true;
+					const meta = await loadGameMeta({ id: entry.id, name: entry.name });
+					const fallback = pickDisplayImageUrl(coverItem(meta.items)?.url);
+					if (fallback && fallback !== cover) {
+						coverUrl = fallback;
+						coverReady = await imageLoads(fallback);
+					} else {
+						coverUrl = undefined;
+						coverReady = false;
+					}
+				}).then(() => undefined)
+			);
 		}
 		if (snap && cachedSnap === undefined) {
 			artLoading = true;

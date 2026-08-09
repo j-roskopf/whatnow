@@ -21,7 +21,7 @@ export function isRetro(game: Game) {
 }
 
 export function isModern(game: Game) {
-	return game.reason === 'leaving' || game.reason === 'free';
+	return game.reason === 'modern' || game.reason === 'leaving' || game.reason === 'free';
 }
 
 export function filterByTab(games: Game[], tab: BrowseTab): Game[] {

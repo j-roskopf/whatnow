@@ -9,8 +9,9 @@ import type {
 	RetroSystemKey
 } from '$lib/types';
 import { RETRO_SYSTEM_LABELS, RETRO_SYSTEM_KEYS, SYSTEMS } from '$lib/data';
-import { pickBestNameMatch } from '$lib/igdb';
+import { shuffle } from '$lib/curation';
 import { fetchLibretroSystemCatalog } from '$lib/live/libretro-catalog';
+import { fetchModernRetailLibrary, fetchModernRetailPicks } from '$lib/live/modern';
 import { fetchPsStoreLastChance } from '$lib/live/ps-store';
 
 const USER_AGENT = 'Mozilla/5.0 (compatible; WhatNow/1.0)';
@@ -187,7 +188,9 @@ function imagicToEntry(
 		imageUrl: game.imageUrl,
 		releaseDate: game.releaseDate,
 		storeUrl: game.conceptUrl
-			? `https://store.playstation.com${game.conceptUrl}`
+			? game.conceptUrl.startsWith('http')
+				? game.conceptUrl
+				: `https://store.playstation.com${game.conceptUrl}`
 			: undefined,
 		tier
 	};
@@ -276,51 +279,20 @@ function dedupeByName(entries: CatalogEntry[]): CatalogEntry[] {
 	});
 }
 
-function enrichPicksWithLibrary(picks: CatalogEntry[], library: CatalogEntry[]): CatalogEntry[] {
-	return picks.map((pick) => {
-		const exact = library.find((row) => row.name.toLowerCase() === pick.name.toLowerCase());
-		const match = exact ?? pickBestNameMatch(pick.name, library, 72);
-		if (!match) return pick;
-		return {
-			...pick,
-			imageUrl: match.imageUrl ?? pick.imageUrl,
-			storeUrl: match.storeUrl ?? pick.storeUrl,
-			releaseDate: match.releaseDate ?? pick.releaseDate
-		};
-	});
-}
-
 async function fetchModernPicks(): Promise<CatalogResponse> {
-	const library = readCache('modern', 'library') ?? await fetchModernLibrary();
-	const picks = await buildModernPickEntries();
-	const entries = enrichPicksWithLibrary(picks, library.entries);
-	return {
-		entries,
-		fetchedAt: new Date().toISOString(),
-		source: 'Well-received picks · 75+ critics · leaving + recently added'
-	};
+	const cached = readCache('modern', 'picks');
+	if (cached) return cached;
+	const result = await fetchModernRetailPicks({ maxPages: 6 });
+	writeCache('modern', 'picks', result);
+	return result;
 }
 
 async function fetchModernLibrary(): Promise<CatalogResponse> {
-	const [gamePass, psPlus] = await Promise.all([
-		fetchGamePassSection('library'),
-		fetchPsPlusLibrary()
-	]);
-
-	const entries = dedupeByName(
-		[...gamePass.entries, ...psPlus.entries].map((entry) => ({
-			...entry,
-			service: 'modern' as const,
-			section: 'library' as const,
-			tier: entry.service === 'gamepass' ? (entry.tier ?? 'Game Pass') : (entry.tier ?? 'PS Plus')
-		}))
-	).sort((a, b) => a.name.localeCompare(b.name));
-
-	return {
-		entries,
-		fetchedAt: new Date().toISOString(),
-		source: 'Game Pass + PS Plus libraries'
-	};
+	const cached = readCache('modern', 'library');
+	if (cached) return cached;
+	const result = await fetchModernRetailLibrary({ maxPages: 8 });
+	writeCache('modern', 'library', result);
+	return result;
 }
 
 function parseRetroSystem(value?: string): RetroSystemKey | null {
@@ -439,6 +411,12 @@ function serviceLabels(entry: CatalogEntry): { systemLabel: string; where: strin
 		const tier = entry.tier ?? 'Humble';
 		return { systemLabel: 'Humble', where: tier };
 	}
+	if (entry.service === 'modern' || id.startsWith('modern-')) {
+		return {
+			systemLabel: 'Modern',
+			where: entry.platforms ?? 'Retail'
+		};
+	}
 	return {
 		systemLabel: entry.systemLabel ?? 'Retro',
 		where: entry.platforms === 'Emulated' ? 'Emulated' : (entry.platforms ?? 'Emulated')
@@ -453,16 +431,10 @@ function defaultWhy(reason: GameReason, entry: CatalogEntry): string {
 	if (reason === 'free') {
 		return `Recently added to ${labels.where}. Worth a look while it costs nothing.`;
 	}
-	return `Classic ${labels.systemLabel} title — emulated, good for a short session.`;
-}
-
-function pickSummary(reason: 'leaving' | 'new', entry: CatalogEntry): string {
-	if (reason === 'leaving') {
-		const labels = serviceLabels(entry);
-		return `Leaving soon on ${labels.where}. Play before it disappears from your subscription.`;
+	if (reason === 'modern') {
+		return `Standalone ${labels.where} title — not tied to a subscription, worth playing on its own.`;
 	}
-	const labels = serviceLabels(entry);
-	return `Recently added to ${labels.where}. Worth a look while it costs nothing.`;
+	return `Classic ${labels.systemLabel} title — emulated, good for a short session.`;
 }
 
 function catalogEntryToGame(entry: CatalogEntry, reason: GameReason): Game {
@@ -470,7 +442,13 @@ function catalogEntryToGame(entry: CatalogEntry, reason: GameReason): Game {
 	const tag =
 		entry.tier ??
 		entry.systemLabel ??
-		(reason === 'leaving' ? 'Leaving soon' : reason === 'free' ? 'New' : labels.systemLabel);
+		(reason === 'leaving'
+			? 'Leaving soon'
+			: reason === 'free'
+				? 'New'
+				: reason === 'modern'
+					? 'Modern'
+					: labels.systemLabel);
 
 	return {
 		id: entry.id,
@@ -500,11 +478,22 @@ async function fetchLiveLeavingEntries(): Promise<CatalogEntry[]> {
 }
 
 async function fetchLiveNewEntries(): Promise<CatalogEntry[]> {
-	const [gamePass, psPlus] = await Promise.all([
+	const [gamePass, psPlusCatalog] = await Promise.all([
 		fetchGamePassSection('new'),
-		fetchPsPlusNew()
+		fetchPsPlusImagic(PSPLUS_IMAGIC.catalog)
 	]);
-	return dedupeByName([...gamePass.entries, ...psPlus.entries]);
+
+	const now = Date.now();
+	const recentWindowMs = 60 * 86400000;
+	const recentCatalog = psPlusCatalog
+		.filter((game) => {
+			if (!game.releaseDate) return false;
+			const when = new Date(game.releaseDate).getTime();
+			return when > now - recentWindowMs;
+		})
+		.map((game) => imagicToEntry(game, 'new', 'Recently added'));
+
+	return dedupeByName([...gamePass.entries, ...recentCatalog]);
 }
 
 const RETRO_POOL_PER_SYSTEM = 48;
@@ -516,28 +505,12 @@ async function fetchLiveRetroPoolSample(): Promise<CatalogEntry[]> {
 	);
 }
 
-async function buildModernPickEntries(): Promise<CatalogEntry[]> {
-	const [leaving, newEntries] = await Promise.all([
-		fetchLiveLeavingEntries(),
-		fetchLiveNewEntries()
-	]);
+const MODERN_POOL_SAMPLE = 80;
+const MODERN_POOL_PAGES = 3;
 
-	return dedupeByName([
-		...leaving.slice(0, 12).map((entry) => ({
-			...entry,
-			service: 'modern' as const,
-			section: 'picks' as const,
-			tier: entry.tier ?? 'Leaving soon',
-			summary: pickSummary('leaving', entry)
-		})),
-		...newEntries.slice(0, 32).map((entry) => ({
-			...entry,
-			service: 'modern' as const,
-			section: 'picks' as const,
-			tier: entry.tier ?? 'Recently added',
-			summary: pickSummary('new', entry)
-		}))
-	]);
+async function fetchLiveModernPoolSample(): Promise<CatalogEntry[]> {
+	const catalog = await fetchModernRetailLibrary({ maxPages: MODERN_POOL_PAGES });
+	return shuffle(catalog.entries).slice(0, MODERN_POOL_SAMPLE);
 }
 
 async function buildRetroPickEntries(): Promise<CatalogEntry[]> {
@@ -560,33 +533,36 @@ export async function fetchLivePool(options?: {
 		return poolCache.data;
 	}
 
-	const [leaving, newEntries, retro] = await Promise.all([
+	const [leaving, newEntries, modern, retro] = await Promise.all([
 		fetchLiveLeavingEntries(),
 		fetchLiveNewEntries(),
+		fetchLiveModernPoolSample(),
 		includeRetro ? fetchLiveRetroPoolSample() : Promise.resolve([])
 	]);
 
 	const process = async (entries: CatalogEntry[]) => entries;
 
-	const [curatedLeaving, curatedNew, curatedRetro] = await Promise.all([
+	const [curatedLeaving, curatedNew, curatedModern, curatedRetro] = await Promise.all([
 		process(leaving),
 		process(newEntries),
+		process(modern),
 		retro.length ? process(retro) : Promise.resolve([])
 	]);
 
 	const games = [
 		...curatedLeaving.map((entry) => catalogEntryToGame(entry, 'leaving')),
 		...curatedNew.map((entry) => catalogEntryToGame(entry, 'free')),
+		...curatedModern.map((entry) => catalogEntryToGame(entry, 'modern')),
 		...curatedRetro.map((entry) => catalogEntryToGame(entry, 'retro'))
 	];
 
 	const source = curate
 		? includeRetro
-			? 'Well-received · 75+ critics · Game Pass, PS Plus & retro'
-			: 'Well-received · 75+ critics · Game Pass & PS Plus'
+			? 'Well-received · 75+ critics · subscriptions, modern & retro'
+			: 'Well-received · 75+ critics · subscriptions & modern'
 		: includeRetro
-			? 'Game Pass, PS Plus & libretro catalogs'
-			: 'Game Pass & PS Plus (loading retro…)';
+			? 'Subscriptions, modern retail & libretro catalogs'
+			: 'Subscriptions & modern retail (loading retro…)';
 
 	const data: PoolResponse = {
 		games,
@@ -595,6 +571,7 @@ export async function fetchLivePool(options?: {
 		counts: {
 			leaving: curatedLeaving.length,
 			free: curatedNew.length,
+			modern: curatedModern.length,
 			retro: curatedRetro.length
 		}
 	};

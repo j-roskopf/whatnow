@@ -10,6 +10,7 @@
 	const platforms: { id: MetacriticPlatform; label: string }[] = [
 		{ id: 'ps5', label: 'PS5' },
 		{ id: 'ps4', label: 'PS4' },
+		{ id: 'switch', label: 'Switch' },
 		{ id: 'xbox-series-x', label: 'Xbox' },
 		{ id: 'pc', label: 'PC' }
 	];

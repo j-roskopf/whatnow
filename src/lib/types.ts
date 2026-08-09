@@ -1,4 +1,4 @@
-export type GameReason = 'leaving' | 'free' | 'retro';
+export type GameReason = 'leaving' | 'free' | 'retro' | 'modern';
 export type ArtFit = 'contain' | 'cover';
 export type ArtSource = 'libretro' | 'steamgriddb' | 'igdb' | 'rawg';
 export type ArtStatus = 'loaded' | 'missing' | 'no-source';
@@ -12,7 +12,7 @@ export type BrowseTab =
 	| 'modern'
 	| 'soon'
 	| 'new';
-export type MetacriticPlatform = 'ps5' | 'ps4' | 'xbox-series-x' | 'pc';
+export type MetacriticPlatform = 'ps5' | 'ps4' | 'switch' | 'xbox-series-x' | 'pc';
 export type SortKey =
 	| 'critics'
 	| 'metacritic'
@@ -35,6 +35,8 @@ export interface CatalogEntry {
 	service: CatalogService;
 	section: CatalogSection;
 	platforms?: string;
+	/** Metacritic browse platform keys for filtering the modern catalog. */
+	platformKeys?: MetacriticPlatform[];
 	imageUrl?: string;
 	snapUrl?: string;
 	releaseDate?: string;
@@ -89,6 +91,7 @@ export interface PoolResponse {
 		leaving: number;
 		free: number;
 		retro: number;
+		modern: number;
 	};
 }
 

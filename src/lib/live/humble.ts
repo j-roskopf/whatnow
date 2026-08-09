@@ -5,11 +5,9 @@ const HUMBLE_ORIGIN = 'https://www.humblebundle.com';
 
 const NON_GAME_CHOICE_PATTERNS = [/ign plus/i, /coupon/i, /membership/i, /vault/i];
 
-function slug(text: string) {
-	return text
-		.toLowerCase()
-		.replace(/[^a-z0-9]+/g, '-')
-		.replace(/^-|-$/g, '');
+function humbleOriginPath(path: string): string {
+	const clean = path.startsWith('/') ? path : `/${path}`;
+	return `${HUMBLE_ORIGIN}${clean}`;
 }
 
 function decodeHtml(text: string) {
@@ -19,6 +17,30 @@ function decodeHtml(text: string) {
 		.replace(/&quot;/g, '"')
 		.replace(/&lt;/g, '<')
 		.replace(/&gt;/g, '>');
+}
+
+function humbleChoiceImage(url: string): string {
+	const decoded = decodeHtml(url);
+	try {
+		const parsed = new URL(decoded);
+		parsed.searchParams.set('auto', 'compress,format');
+		parsed.searchParams.set('fit', 'crop');
+		parsed.searchParams.set('h', '600');
+		parsed.searchParams.set('w', '400');
+		return parsed.toString();
+	} catch {
+		return decoded
+			.replace(/([?&])h=\d+/gi, '$1h=600')
+			.replace(/([?&])w=\d+/gi, '$1w=400')
+			.replace(/fit=clip/gi, 'fit=crop');
+	}
+}
+
+function slug(text: string) {
+	return text
+		.toLowerCase()
+		.replace(/[^a-z0-9]+/g, '-')
+		.replace(/^-|-$/g, '');
 }
 
 function extractScriptJson(html: string, scriptId: string): unknown | null {
@@ -73,6 +95,11 @@ type BundleTierItem = {
 	human_name?: string;
 	item_content_type?: string;
 	featured_image?: string;
+	resolved_paths?: {
+		featured_image?: string;
+		front_page_art_imgix?: string;
+	};
+	front_page_art?: { image_path?: string };
 	cta_badge?: { badge?: string };
 	availability_icons?: {
 		platform_icons?: string[];
@@ -92,6 +119,14 @@ function humbleImageFromPath(path?: string): string | undefined {
 	if (!path) return undefined;
 	if (path.startsWith('http')) return path;
 	return `https://hb.imgix.net/${path.replace(/^images\//, '')}?auto=compress,format&fit=crop&h=600&w=1200`;
+}
+
+function humbleBundleImage(item: BundleTierItem): string | undefined {
+	const paths = item.resolved_paths;
+	if (paths?.featured_image) return decodeHtml(paths.featured_image);
+	if (paths?.front_page_art_imgix) return humbleChoiceImage(decodeHtml(paths.front_page_art_imgix));
+	if (item.front_page_art?.image_path) return humbleImageFromPath(item.front_page_art.image_path);
+	return humbleImageFromPath(item.featured_image);
 }
 
 function platformsFromItem(item: BundleTierItem): string | undefined {
@@ -123,7 +158,7 @@ function bundleItemToEntry(
 		service: 'humble',
 		section: 'library',
 		platforms: platformsFromItem(item),
-		imageUrl: humbleImageFromPath(item.featured_image),
+		imageUrl: humbleBundleImage(item),
 		storeUrl: `${HUMBLE_ORIGIN}/games/${bundleMachineName.replace(/_bundle$/, '').replace(/_/g, '-')}`,
 		tier: bundleName
 	};
@@ -148,8 +183,8 @@ async function fetchBundleGames(
 
 	const displayName = data.bundleData?.basic_data?.human_name ?? bundleName;
 	const bundleUrl = data.bundleData?.page_url
-		? `${HUMBLE_ORIGIN}${data.bundleData.page_url}`
-		: `${HUMBLE_ORIGIN}${productUrl}`;
+		? humbleOriginPath(data.bundleData.page_url)
+		: humbleOriginPath(productUrl);
 
 	return Object.values(tierItems)
 		.map((item) => {
@@ -221,7 +256,7 @@ export async function fetchHumbleChoice(): Promise<CatalogEntry[]> {
 			name,
 			service: 'humble',
 			section: 'new',
-			imageUrl,
+			imageUrl: humbleChoiceImage(imageUrl),
 			storeUrl: `${HUMBLE_ORIGIN}/membership`,
 			tier: 'Choice'
 		});

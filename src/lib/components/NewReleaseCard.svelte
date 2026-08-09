@@ -7,7 +7,7 @@
 		loadGameMeta,
 		slugId
 	} from '$lib/art';
-	import { normalizeImageUrl, pickDisplayImageUrl } from '$lib/html';
+	import { normalizeImageUrl, pickDisplayImageUrl, localReleaseArtPaths } from '$lib/html';
 	import type { GameMeta, MetacriticRelease } from '$lib/types';
 
 	let {
@@ -45,7 +45,7 @@
 			.join('');
 	}
 
-	const colors = hues(release.name);
+	const colors = $derived(hues(release.name));
 	const items = $derived(meta?.items ?? []);
 	const ratings = $derived(meta?.ratings);
 	const cover = $derived(coverItem(items));
@@ -78,6 +78,15 @@
 		return resolvePoster(url);
 	}
 
+	async function tryLocalArt(slug: string): Promise<string | undefined> {
+		for (const path of localReleaseArtPaths(slug)) {
+			if (await resolvePoster(path)) return path;
+		}
+		const apiUrl = `/api/cover?slug=${encodeURIComponent(slug)}`;
+		if (await resolvePoster(apiUrl)) return apiUrl;
+		return undefined;
+	}
+
 	$effect(() => {
 		const lookup = {
 			id: slugId(release.name),
@@ -96,6 +105,10 @@
 			} else {
 				posterReady = false;
 			}
+
+			const local = await tryLocalArt(release.id);
+			if (cancelled) return;
+			if (local) return;
 
 			artLoading = true;
 			const remoteOk = await tryRemotePoster(lookup);

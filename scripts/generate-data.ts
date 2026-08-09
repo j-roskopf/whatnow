@@ -135,7 +135,7 @@ const catalogQueries: [CatalogService, CatalogSection][] = [
 	['retro', 'library']
 ];
 
-const metacriticPlatforms: MetacriticPlatform[] = ['ps5', 'ps4', 'xbox-series-x', 'pc'];
+const metacriticPlatforms: MetacriticPlatform[] = ['ps5', 'ps4', 'switch', 'xbox-series-x', 'pc'];
 
 mkdirSync(`${outDir}/catalog`, { recursive: true });
 mkdirSync(`${outDir}/metacritic`, { recursive: true });

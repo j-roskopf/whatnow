@@ -49,7 +49,7 @@
 		return Math.ceil((new Date(`${date}T12:00:00`).getTime() - today.getTime()) / 86400000);
 	}
 
-	const colors = hues(game.name);
+	const colors = $derived(hues(game.name));
 	const items = $derived(meta?.items ?? []);
 	const ratings = $derived(meta?.ratings);
 	const cover = $derived(coverItem(items));

@@ -35,7 +35,7 @@ async function buildMetacriticScoreIndex(): Promise<ScoredCandidate[]> {
 
 	indexPromise = (async () => {
 		const byName = new Map<string, ScoredCandidate>();
-		const platforms: MetacriticPlatform[] = ['ps5', 'ps4', 'xbox-series-x', 'pc'];
+		const platforms: MetacriticPlatform[] = ['ps5', 'ps4', 'switch', 'xbox-series-x', 'pc'];
 
 		for (const platform of platforms) {
 			try {

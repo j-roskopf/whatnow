@@ -26,3 +26,10 @@ export function pickDisplayImageUrl(...candidates: (string | undefined | null)[]
 	}
 	return undefined;
 }
+
+const LOCAL_ART_EXTENSIONS = ['.jpg', '.png', '.webp'] as const;
+
+/** Static paths mirrored at build time (or via /api/cover on demand). */
+export function localReleaseArtPaths(slug: string): string[] {
+	return LOCAL_ART_EXTENSIONS.map((ext) => `/art/releases/${slug}${ext}`);
+}

@@ -20,7 +20,7 @@ const cache = new Map<string, CacheEntry>();
 type ReleasesCacheEntry = { expires: number; data: MetacriticReleasesResponse };
 const releasesCache = new Map<string, ReleasesCacheEntry>();
 
-const METACRITIC_PLATFORMS: MetacriticPlatform[] = ['ps5', 'ps4', 'xbox-series-x', 'pc'];
+const METACRITIC_PLATFORMS: MetacriticPlatform[] = ['ps5', 'ps4', 'switch', 'xbox-series-x', 'pc'];
 
 function isMetacriticPlatform(value?: string): MetacriticPlatform | null {
 	if (value && METACRITIC_PLATFORMS.includes(value as MetacriticPlatform)) {
@@ -201,6 +201,28 @@ function mapLibraryRelease(
 	};
 }
 
+function cleanBrowseTitle(raw: string): string {
+	return raw.replace(/^\d+\.\s*/, '').trim();
+}
+
+function parseBrowseScore($: ReturnType<typeof load>, $card: Cheerio<Element>): number | undefined {
+	const badgeText = $card.find('[data-testid="score-badge"]').text().trim();
+	const badgeMatch = badgeText.match(/^(\d{1,3})/);
+	if (badgeMatch) return Number(badgeMatch[1]);
+
+	const scoreAlt = $card.find('[data-testid="score-badge"] img').attr('alt') ?? '';
+	const altMatch = scoreAlt.match(/\d+/);
+	if (altMatch) return Number(altMatch[0]);
+
+	const metascoreSpan = $card
+		.find('span')
+		.filter((_, element) => /\d+Metascore/i.test($(element).text()))
+		.first()
+		.text();
+	const spanMatch = metascoreSpan.match(/^(\d{1,3})/);
+	return spanMatch ? Number(spanMatch[1]) : undefined;
+}
+
 function parseBrowseReleases(html: string, platform: MetacriticPlatform): MetacriticRelease[] {
 	const $ = load(html);
 	const releases: MetacriticRelease[] = [];
@@ -209,15 +231,14 @@ function parseBrowseReleases(html: string, platform: MetacriticPlatform): Metacr
 		const $card = $(element);
 		const href = $card.find('a[href*="/game/"]').first().attr('href');
 		const slug = slugFromHref(href);
-		const name = $card.find('[data-testid="product-title"] span').first().text().trim();
+		const rawName = $card.find('[data-testid="product-title"]').text().trim();
+		const name = cleanBrowseTitle(rawName);
 		if (!slug || !name) return;
 
 		const releaseDateLabel = $card.find('.uppercase.mb-1 span').first().text().trim();
 		const summary = $card.find('.line-clamp-2 span').first().text().trim();
 		const imageUrl = extractProductImage($card);
-		const scoreAlt = $card.find('[data-testid="score-badge"] img').attr('alt') ?? '';
-		const scoreMatch = scoreAlt.match(/\d+/);
-		const score = scoreMatch ? Number(scoreMatch[0]) : undefined;
+		const score = parseBrowseScore($, $card);
 
 		releases.push({
 			id: slug,
@@ -299,6 +320,42 @@ async function fetchBrowseHtml(platform: MetacriticPlatform): Promise<string | n
 	} catch {
 		return null;
 	}
+}
+
+async function fetchBrowsePage(url: string): Promise<string | null> {
+	try {
+		const response = await fetch(url, {
+			headers: { 'User-Agent': USER_AGENT, Accept: 'text/html' },
+			redirect: 'follow'
+		});
+		if (!response.ok) return null;
+		return await response.text();
+	} catch {
+		return null;
+	}
+}
+
+/** Scrape Metacritic's ranked browse lists (PS5, PS4, Switch, Xbox, PC). */
+export async function fetchMetacriticAvailableCatalog(
+	platform: MetacriticPlatform,
+	options?: { maxPages?: number }
+): Promise<MetacriticRelease[]> {
+	const maxPages = options?.maxPages ?? 8;
+	const base = `${BASE_URL}/browse/game/${platform}/all/all-time/metascore`;
+	const all: MetacriticRelease[] = [];
+
+	for (let page = 0; page < maxPages; page += 1) {
+		const url = page === 0 ? `${base}/` : `${base}/?page=${page + 1}`;
+		const html = await fetchBrowsePage(url);
+		if (!html) break;
+
+		const releases = parseBrowseReleases(html, platform);
+		if (!releases.length) break;
+		all.push(...releases);
+		if (releases.length < 20) break;
+	}
+
+	return all;
 }
 
 export async function fetchMetacriticNewReleases(

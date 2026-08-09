@@ -9,10 +9,20 @@
 		CatalogSection,
 		CatalogService,
 		GameRatings,
+		MetacriticPlatform,
 		MinScoreSource,
 		RetroSystemKey,
 		SortKey
 	} from '$lib/types';
+
+	const MODERN_PLATFORMS: { id: MetacriticPlatform | 'all'; label: string }[] = [
+		{ id: 'all', label: 'All' },
+		{ id: 'ps5', label: 'PS5' },
+		{ id: 'ps4', label: 'PS4' },
+		{ id: 'switch', label: 'Switch' },
+		{ id: 'xbox-series-x', label: 'Xbox' },
+		{ id: 'pc', label: 'PC' }
+	];
 
 	let { service }: { service: CatalogService } = $props();
 
@@ -29,7 +39,7 @@
 		],
 		modern: [
 			{ id: 'picks', label: 'Well-received' },
-			{ id: 'library', label: 'Subscription library' }
+			{ id: 'library', label: 'Full catalog' }
 		],
 		retro: [
 			{ id: 'picks', label: 'Well-received' },
@@ -43,9 +53,11 @@
 
 	const sections = $derived(serviceSections[service]);
 	const isRetro = $derived(service === 'retro');
+	const isModern = $derived(service === 'modern');
 
 	let section = $state<CatalogSection>('library');
 	let retroSystem = $state<RetroSystemKey>('snes');
+	let modernPlatform = $state<MetacriticPlatform | 'all'>('all');
 	let sort = $state<SortKey>('name');
 	let minScore = $state(0);
 	let minScoreSource = $state<MinScoreSource>('metacritic');
@@ -64,9 +76,14 @@
 	let filtered = $derived(
 		filterCatalogByMinScore(
 			sortCatalog(
-				entries.filter((entry) =>
-					entry.name.toLowerCase().includes(search.trim().toLowerCase())
-				),
+				entries
+					.filter((entry) =>
+						entry.name.toLowerCase().includes(search.trim().toLowerCase())
+					)
+					.filter((entry) => {
+						if (!isModern || section !== 'library' || modernPlatform === 'all') return true;
+						return entry.platformKeys?.includes(modernPlatform) ?? false;
+					}),
 				sort,
 				ratings
 			),
@@ -157,6 +174,25 @@
 					onclick={() => loadRetroSystem(key)}
 				>
 					{RETRO_SYSTEM_LABELS[key]}
+				</button>
+			{/each}
+		</div>
+	{/if}
+
+	{#if isModern && section === 'library'}
+		<div class="section-tabs system-tabs" role="tablist" aria-label="Modern platforms">
+			{#each MODERN_PLATFORMS as row}
+				<button
+					type="button"
+					role="tab"
+					class:sel={modernPlatform === row.id}
+					aria-selected={modernPlatform === row.id}
+					onclick={() => {
+						modernPlatform = row.id;
+						page = 0;
+					}}
+				>
+					{row.label}
 				</button>
 			{/each}
 		</div>

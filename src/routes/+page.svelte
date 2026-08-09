@@ -25,14 +25,20 @@
 	let tab = $state<BrowseTab>('tonight');
 	let pinnedMonthlyIds = $state<Set<string>>(new Set());
 
+	const SHELF_SIZE = 10;
+
 	let shelf = $derived(
 		hand.map((id) => games.find((game) => game.id === id)).filter((game): game is Game => Boolean(game))
 	);
 	let pool = $derived(games.filter((game) => !dismissed.has(game.id)));
 
+	function isMonthlyPsPlus(game: Game) {
+		return pinnedMonthlyIds.has(game.id) || game.tag === 'Monthly';
+	}
+
 	function deal() {
 		const available = games.filter(
-			(game) => !dismissed.has(game.id) && !pinnedMonthlyIds.has(game.id)
+			(game) => !dismissed.has(game.id) && !isMonthlyPsPlus(game)
 		);
 		const pick = (items: Game[], count: number) =>
 			items
@@ -44,15 +50,16 @@
 		let result = [
 			...pick(available.filter((game) => game.reason === 'leaving'), 2),
 			...pick(available.filter((game) => game.reason === 'free'), 2),
-			...pick(available.filter((game) => game.reason === 'retro'), 2)
+			...pick(available.filter((game) => game.reason === 'modern'), 3),
+			...pick(available.filter((game) => game.reason === 'retro'), 3)
 		];
 
-		if (result.length < 6) {
+		if (result.length < SHELF_SIZE) {
 			const rest = available.filter((game) => !result.includes(game.id));
-			result = result.concat(pick(rest, 6 - result.length));
+			result = result.concat(pick(rest, SHELF_SIZE - result.length));
 		}
 
-		return result.slice(0, 6);
+		return result.slice(0, SHELF_SIZE);
 	}
 
 	function resetArtStatus() {
@@ -82,7 +89,9 @@
 		hand = hand.filter((id) => id !== game.id);
 		const replacement = games.filter(
 			(item) =>
-				!dismissed.has(item.id) && !hand.includes(item.id) && !pinnedMonthlyIds.has(item.id)
+				!dismissed.has(item.id) &&
+				!hand.includes(item.id) &&
+				!isMonthlyPsPlus(item)
 		);
 		if (replacement.length) hand = [...hand, replacement[Math.floor(Math.random() * replacement.length)].id];
 		resetArtStatus();
@@ -100,8 +109,12 @@
 
 	function resolveHand(): string[] {
 		const saved = loadHand(dateKey)?.filter((id) => !dismissed.has(id));
-		const valid = saved?.filter((id) => games.some((game) => game.id === id)) ?? [];
-		if (valid.length >= 6) return valid.slice(0, 6);
+		const valid =
+			saved?.filter((id) => {
+				const game = games.find((row) => row.id === id);
+				return game && !isMonthlyPsPlus(game);
+			}) ?? [];
+		if (valid.length >= SHELF_SIZE) return valid.slice(0, SHELF_SIZE);
 		return deal();
 	}
 
@@ -136,7 +149,7 @@
 
 <svelte:head>
 	<title>What Now — a shorter way to choose</title>
-	<meta name="description" content="Six games, weighted toward what you already pay for and what is about to disappear." />
+	<meta name="description" content="Ten games, weighted toward what you already pay for and what is about to disappear." />
 </svelte:head>
 
 <div class="wrap">
@@ -146,14 +159,13 @@
 	</header>
 
 	<p class="sub">
-		Browse by service, sort by critic scores, or let tonight's shelf pick six for you. Hover a retro cover to see
+		Browse by service, sort by critic scores, or let tonight's shelf pick ten for you. Hover a retro cover to see
 		the game running. Click any cover for screenshots.
 	</p>
 
 	<BrowseTabs active={tab} onChange={(next) => (tab = next)} />
 
 	{#if tab === 'tonight'}
-		<PinnedShelf />
 		<div class="slab">
 			<h2>Tonight's shelf</h2>
 			<div class="line"></div>
@@ -174,6 +186,7 @@
 				{/each}
 			{/if}
 		</div>
+		<PinnedShelf />
 	{:else if tab === 'new'}
 		<div class="slab"><h2>New releases</h2><div class="line"></div></div>
 		<NewReleasesRail {today} />
