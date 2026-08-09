@@ -161,7 +161,6 @@
 				{/each}
 			</div>
 		{/if}
-		<p class="why">{game.why}</p>
 		<div class="meta"><span>{game.where}</span><span>{game.hours}</span><span>{game.platforms}</span></div>
 	</div>
 </article>

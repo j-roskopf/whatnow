@@ -3,7 +3,11 @@
 	import { normalizeImageUrl, pickDisplayImageUrl } from '$lib/html';
 	import type { CatalogEntry, GameRatings } from '$lib/types';
 
-	let { entry, ratings }: { entry: CatalogEntry; ratings?: GameRatings } = $props();
+	let { entry, ratings, showSummary = true }: {
+		entry: CatalogEntry;
+		ratings?: GameRatings;
+		showSummary?: boolean;
+	} = $props();
 
 	let coverUrl = $state<string | undefined>();
 	let snapUrl = $state<string | undefined>();
@@ -165,7 +169,7 @@
 				{/each}
 			</div>
 		{/if}
-		{#if entry.summary}
+		{#if showSummary && entry.summary}
 			<p class="why">{entry.summary}</p>
 		{/if}
 		{#if entry.platforms}

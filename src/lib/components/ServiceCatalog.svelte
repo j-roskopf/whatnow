@@ -271,7 +271,7 @@
 	{:else}
 		<div class="shelf catalog-grid">
 			{#each visible as entry (entry.id)}
-				<CatalogCard entry={entry} ratings={ratings[entry.id]} />
+				<CatalogCard entry={entry} ratings={ratings[entry.id]} showSummary={service !== 'modern'} />
 			{/each}
 		</div>
 		{#if pageCount > 1}
