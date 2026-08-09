@@ -174,30 +174,15 @@
 	onMount(async () => {
 		dismissed = loadDismissed();
 
-		const pinned = await loadPinned();
+		const [pinned, pool] = await Promise.all([loadPinned(), loadPool()]);
 		const monthly = pinned.sections.find((section) => section.id === 'psplus-monthly');
 		pinnedMonthlyIds = new Set(monthly?.entries.map((entry) => entry.id) ?? []);
 
-		const fast = await loadPool({ fast: true });
-		games = fast.games;
-		poolSource = fast.source;
+		games = pool.games;
+		poolSource = pool.source;
 		hand = resolveHand();
 		persist();
 		ready = true;
-
-		// Retro catalogs are large; load them after the UI is interactive.
-		window.setTimeout(async () => {
-			const full = await loadPool();
-			if (full.games.length <= games.length) return;
-			games = full.games;
-			poolSource = full.source;
-			if (!handHasMix(hand) || hand.filter((id) => games.some((game) => game.id === id)).length < hand.length) {
-				hand = resolveHand();
-				resetArtStatus();
-				artVersion += 1;
-				persist();
-			}
-		}, 0);
 	});
 </script>
 
