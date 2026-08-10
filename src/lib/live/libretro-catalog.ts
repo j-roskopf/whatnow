@@ -53,12 +53,12 @@ function isPlayableRelease(file: string) {
 	return /\((USA|Europe|World|Canada|Australia)\)/i.test(file);
 }
 
-function parseIndexFiles(html: string, maxFiles = 500): string[] {
+function parseIndexFiles(html: string): string[] {
 	const files: string[] = [];
 	const pattern = /href="([^"]+\.png)"/gi;
 	let match: RegExpExecArray | null;
 
-	while ((match = pattern.exec(html)) !== null && files.length < maxFiles) {
+	while ((match = pattern.exec(html)) !== null) {
 		const href = match[1];
 		if (!href || href.includes('Parent Directory')) continue;
 		const decoded = decodeURIComponent(href.replace(/\.png$/i, ''));
