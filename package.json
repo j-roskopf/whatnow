@@ -25,6 +25,7 @@
 		"vite": "^8.0.16"
 	},
 	"dependencies": {
+		"@upstash/redis": "^1.38.2",
 		"unofficial-metacritic": "^2.0.0"
 	}
 }

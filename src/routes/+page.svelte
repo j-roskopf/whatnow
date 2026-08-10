@@ -2,6 +2,7 @@
 	import { onMount } from 'svelte';
 	import BrowseTabs from '$lib/components/BrowseTabs.svelte';
 	import GameCard from '$lib/components/GameCard.svelte';
+	import JustArrivedRail from '$lib/components/JustArrivedRail.svelte';
 	import NewReleasesRail from '$lib/components/NewReleasesRail.svelte';
 	import PinnedShelf from '$lib/components/PinnedShelf.svelte';
 	import ServiceCatalog from '$lib/components/ServiceCatalog.svelte';
@@ -220,6 +221,7 @@
 				{/each}
 			{/if}
 		</div>
+		<JustArrivedRail />
 		<PinnedShelf />
 	{:else if tab === 'new'}
 		<div class="slab"><h2>New releases</h2><div class="line"></div></div>

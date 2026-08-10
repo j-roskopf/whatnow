@@ -1,7 +1,9 @@
 import { json, error } from '@sveltejs/kit';
 import { hasAnyApiKeys, resolveApiKeys } from '$lib/server/api-keys';
-import { lookupGameMeta } from '$lib/server/game-meta';
-import type { GameMeta } from '$lib/types';
+import {
+	lookupGameMetaBatchCached,
+	META_CACHE_TTL_SECONDS
+} from '$lib/server/meta-cache';
 import type { RequestHandler } from './$types';
 
 export const prerender = false;
@@ -38,18 +40,11 @@ export const POST: RequestHandler = async ({ request }) => {
 		error(503, 'No API keys configured');
 	}
 
-	const results: Record<string, GameMeta> = {};
+	const results = await lookupGameMetaBatchCached(lookups.slice(0, MAX_LOOKUPS), keys);
 
-	await Promise.all(
-		lookups.slice(0, MAX_LOOKUPS).map(async (lookup) => {
-			const meta = await lookupGameMeta(lookup.name, keys, {
-				releaseDate: lookup.releaseDate,
-				searchAs: lookup.searchAs,
-				igdbId: lookup.igdbId
-			});
-			results[lookup.id] = meta;
-		})
-	);
-
-	return json(results);
+	return json(results, {
+		headers: {
+			'Cache-Control': `public, s-maxage=${META_CACHE_TTL_SECONDS}, stale-while-revalidate=3600`
+		}
+	});
 };
