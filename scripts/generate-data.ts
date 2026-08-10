@@ -1,11 +1,12 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { isBrowserSafeImageUrl } from '../src/lib/html.ts';
-import { UPCOMING, RETRO_SYSTEM_KEYS } from '../src/lib/data.ts';
+import { CURATED_UPCOMING, RETRO_SYSTEM_KEYS } from '../src/lib/data.ts';
 import { fetchCatalog, fetchLivePool } from '../src/lib/live/catalog.ts';
 import { fetchPinnedSections } from '../src/lib/live/pinned.ts';
 import { lookupGameMeta } from '../src/lib/server/game-meta.ts';
 import { mirrorMetacriticCover } from '../src/lib/server/mirror-image.ts';
 import { fetchMetacriticNewReleases } from '../src/lib/server/metacritic.ts';
+import { fetchAllUpcomingGames } from '../src/lib/server/upcoming.ts';
 import type {
 	ApiKeys,
 	CatalogSection,
@@ -13,7 +14,9 @@ import type {
 	GameMeta,
 	MetacriticPlatform,
 	MetacriticRelease,
-	MetacriticReleasesResponse
+	MetacriticReleasesResponse,
+	UpcomingGame,
+	UpcomingPlatformKey
 } from '../src/lib/types.ts';
 
 const outDir = 'static/data';
@@ -60,11 +63,14 @@ async function resolveCoverUrl(
 	return mirrorMetacriticCover(slug, 'releases');
 }
 
-async function generateUpcomingMeta(keys: ApiKeys): Promise<Record<string, GameMeta>> {
+async function generateUpcomingMeta(
+	keys: ApiKeys,
+	games: UpcomingGame[]
+): Promise<Record<string, GameMeta>> {
 	const results: Record<string, GameMeta> = {};
 
-	for (const game of UPCOMING) {
-		const id = slugId(game.name);
+	for (const game of games) {
+		const id = game.id || slugId(game.name);
 		console.log(`Generating upcoming art ${game.name}…`);
 
 		const meta = await lookupGameMeta(game.name, keys, {
@@ -80,6 +86,14 @@ async function generateUpcomingMeta(keys: ApiKeys): Promise<Record<string, GameM
 			continue;
 		}
 
+		if (game.imageUrl && isBrowserSafeImageUrl(game.imageUrl)) {
+			results[id] = {
+				items: [{ url: game.imageUrl, fit: 'cover', source: 'rawg', kind: 'cover' }],
+				ratings: meta.ratings
+			};
+			continue;
+		}
+
 		const slugs = new Set([slugify(game.name), ...(game.searchAs ?? []).map(slugify)]);
 		for (const slug of slugs) {
 			if (!slug) continue;
@@ -90,6 +104,23 @@ async function generateUpcomingMeta(keys: ApiKeys): Promise<Record<string, GameM
 				ratings: meta.ratings
 			};
 			break;
+		}
+	}
+
+	for (const game of CURATED_UPCOMING) {
+		const id = slugId(game.name);
+		if (results[id]) continue;
+		console.log(`Generating curated upcoming art ${game.name}…`);
+		const meta = await lookupGameMeta(game.name, keys, {
+			releaseDate: game.date,
+			searchAs: game.searchAs,
+			igdbId: game.igdbId
+		});
+		if (meta.items.some((item) => isBrowserSafeImageUrl(item.url))) {
+			results[id] = {
+				...meta,
+				items: meta.items.filter((item) => isBrowserSafeImageUrl(item.url))
+			};
 		}
 	}
 
@@ -136,9 +167,19 @@ const catalogQueries: [CatalogService, CatalogSection][] = [
 ];
 
 const metacriticPlatforms: MetacriticPlatform[] = ['ps5', 'ps4', 'switch', 'xbox-series-x', 'pc'];
+const upcomingPlatforms: UpcomingPlatformKey[] = [
+	'all',
+	'ps5',
+	'switch2',
+	'switch',
+	'xbox-series-x',
+	'pc',
+	'ps4'
+];
 
 mkdirSync(`${outDir}/catalog`, { recursive: true });
 mkdirSync(`${outDir}/metacritic`, { recursive: true });
+mkdirSync(`${outDir}/upcoming`, { recursive: true });
 mkdirSync('static/art/releases', { recursive: true });
 mkdirSync('static/art/upcoming', { recursive: true });
 
@@ -170,7 +211,17 @@ for (const platform of metacriticPlatforms) {
 	);
 }
 
+console.log('Generating upcoming catalogs…');
+const upcomingCatalogs = await fetchAllUpcomingGames();
+for (const platform of upcomingPlatforms) {
+	console.log(`Writing upcoming ${platform}…`);
+	writeJson(`${outDir}/upcoming/${platform}.json`, upcomingCatalogs[platform]);
+}
+
 console.log('Generating upcoming art…');
-writeJson(`${outDir}/upcoming-meta.json`, await generateUpcomingMeta(buildKeys()));
+writeJson(
+	`${outDir}/upcoming-meta.json`,
+	await generateUpcomingMeta(buildKeys(), upcomingCatalogs.all?.games ?? [])
+);
 
 console.log('Static data generation complete.');

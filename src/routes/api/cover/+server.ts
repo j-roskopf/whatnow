@@ -11,9 +11,15 @@ const EXT_TYPES: Record<string, string> = {
 	'.webp': 'image/webp'
 };
 
-function readLocalCover(slug: string): { body: Buffer; type: string } | null {
+type CoverCategory = 'releases' | 'upcoming';
+
+function parseCategory(value: string | null): CoverCategory {
+	return value === 'upcoming' ? 'upcoming' : 'releases';
+}
+
+function readLocalCover(slug: string, category: CoverCategory): { body: Buffer; type: string } | null {
 	for (const [ext, type] of Object.entries(EXT_TYPES)) {
-		const path = `static/art/releases/${slug}${ext}`;
+		const path = `static/art/${category}/${slug}${ext}`;
 		if (!existsSync(path)) continue;
 		return { body: readFileSync(path), type };
 	}
@@ -26,11 +32,13 @@ export const GET: RequestHandler = async ({ url }) => {
 		error(400, 'Invalid slug');
 	}
 
-	let local = readLocalCover(slug);
+	const category = parseCategory(url.searchParams.get('category'));
+
+	let local = readLocalCover(slug, category);
 	if (!local) {
-		const mirrored = await mirrorMetacriticCover(slug, 'releases');
+		const mirrored = await mirrorMetacriticCover(slug, category);
 		if (!mirrored) error(404, 'Cover not found');
-		local = readLocalCover(slug);
+		local = readLocalCover(slug, category);
 		if (!local) error(404, 'Cover not found');
 	}
 

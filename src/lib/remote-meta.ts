@@ -35,6 +35,12 @@ export async function lookupGameMeta(name: string, options?: LookupOptions): Pro
 	return results[id] ?? { items: [], ratings: { scores: [] } };
 }
 
+export async function lookupGameMetaBatch(
+	lookups: MetaLookup[]
+): Promise<Record<string, GameMeta>> {
+	return fetchMetaBatch(lookups);
+}
+
 export async function lookupGameRatings(
 	lookups: { id: string; name: string; searchAs?: string[] }[]
 ): Promise<Record<string, GameRatings>> {

@@ -4,10 +4,9 @@
 		coverItem,
 		galleryItems,
 		imageLoads,
-		loadGameMeta,
 		slugId
 	} from '$lib/art';
-	import { pickDisplayImageUrl } from '$lib/html';
+	import { localUpcomingArtPaths, pickDisplayImageUrl } from '$lib/html';
 	import { storeUrlFromPlatformsLabel } from '$lib/store-urls';
 	import type { GameMeta, UpcomingGame } from '$lib/types';
 
@@ -51,11 +50,14 @@
 	}
 
 	const colors = $derived(hues(game.name));
-	const storeUrl = $derived(storeUrlFromPlatformsLabel(game.name, game.platforms));
+	const storeUrl = $derived(
+		game.storeUrl ?? storeUrlFromPlatformsLabel(game.name, game.platforms)
+	);
 	const items = $derived(meta?.items ?? []);
 	const ratings = $derived(meta?.ratings);
 	const cover = $derived(coverItem(items));
 	const gallery = $derived(galleryItems(items));
+	const slug = $derived(game.id || slugId(game.name));
 
 	async function resolvePoster(url: string): Promise<boolean> {
 		const cached = cachedImageLoad(url);
@@ -71,23 +73,17 @@
 		return ok;
 	}
 
-	async function tryRemotePoster() {
-		const result = await loadGameMeta({
-			id: slugId(game.name),
-			name: game.name,
-			releaseDate: game.date,
-			searchAs: game.searchAs,
-			igdbId: game.igdbId
-		});
-		const hit = coverItem(result.items);
-		const url = pickDisplayImageUrl(hit?.url);
-		if (!url) return false;
-		posterUrl = url;
-		return resolvePoster(url);
+	async function tryLocalArt(): Promise<string | undefined> {
+		for (const path of localUpcomingArtPaths(slug)) {
+			if (await resolvePoster(path)) return path;
+		}
+		const apiUrl = `/api/cover?slug=${encodeURIComponent(slug)}&category=upcoming`;
+		if (await resolvePoster(apiUrl)) return apiUrl;
+		return undefined;
 	}
 
 	$effect(() => {
-		const next = pickDisplayImageUrl(cover?.url);
+		const next = pickDisplayImageUrl(cover?.url, game.imageUrl);
 		let cancelled = false;
 
 		async function resolve() {
@@ -100,10 +96,9 @@
 				posterReady = false;
 			}
 
-			artLoading = true;
-			const remoteOk = await tryRemotePoster();
+			await tryLocalArt();
 			if (cancelled) return;
-			if (!remoteOk) artLoading = false;
+			artLoading = false;
 		}
 
 		void resolve();
@@ -154,6 +149,10 @@
 					<span class="rating-chip">{score.label} {score.score}</span>
 				{/if}
 			{/each}
+		</div>
+	{:else if game.score != null}
+		<div class="ratings rail-ratings">
+			<span class="rating-chip">Metacritic {game.score}</span>
 		</div>
 	{/if}
 	<div class="p">{game.platforms}</div>

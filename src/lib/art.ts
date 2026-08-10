@@ -1,5 +1,5 @@
 import { browser } from '$app/environment';
-import { lookupGameMeta } from '$lib/remote-meta';
+import { lookupGameMeta, lookupGameMetaBatch } from '$lib/remote-meta';
 import type {
 	ArtLookup,
 	GameMedia,
@@ -157,20 +157,14 @@ export async function loadMetaBatch(lookups: ArtLookup[]): Promise<Record<string
 	}
 
 	if (uncached.length) {
+		const chunkSize = 48;
 		try {
-			const batch = await Promise.all(
-				uncached.map(async (lookup) => {
-					const meta = await lookupGameMeta(lookup.name, {
-						releaseDate: lookup.releaseDate,
-						searchAs: lookup.searchAs,
-						igdbId: lookup.igdbId
-					});
-					return { lookup, meta };
-				})
-			);
-
-			for (const { lookup, meta } of batch) {
-				if (meta.items.length || meta.ratings.scores.length) {
+			for (let index = 0; index < uncached.length; index += chunkSize) {
+				const chunk = uncached.slice(index, index + chunkSize);
+				const batch = await lookupGameMetaBatch(chunk);
+				for (const lookup of chunk) {
+					const meta = batch[lookup.id];
+					if (!meta || (!meta.items.length && !meta.ratings.scores.length)) continue;
 					writeCachedMeta(lookup, meta);
 					results[lookup.id] = meta;
 				}

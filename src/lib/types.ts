@@ -14,6 +14,7 @@ export type BrowseTab =
 	| 'soon'
 	| 'new';
 export type MetacriticPlatform = 'ps5' | 'ps4' | 'switch' | 'xbox-series-x' | 'pc';
+export type UpcomingPlatformKey = MetacriticPlatform | 'switch2' | 'all';
 export type SortKey =
 	| 'critics'
 	| 'metacritic'
@@ -98,11 +99,38 @@ export interface PoolResponse {
 }
 
 export interface UpcomingGame {
+	id: string;
+	name: string;
+	date: string;
+	releaseDateLabel?: string;
+	platforms: string;
+	platformKeys?: UpcomingPlatformKey[];
+	storeUrl?: string;
+	imageUrl?: string;
+	score?: number;
+	summary?: string;
+	searchAs?: string[];
+	igdbId?: number;
+	steamAppId?: number;
+}
+
+export interface CuratedUpcomingGame {
 	name: string;
 	date: string;
 	platforms: string;
+	platformKeys?: Exclude<UpcomingPlatformKey, 'all'>[];
+	storeUrl?: string;
+	imageUrl?: string;
 	searchAs?: string[];
 	igdbId?: number;
+	steamAppId?: number;
+}
+
+export interface UpcomingResponse {
+	games: UpcomingGame[];
+	platform: UpcomingPlatformKey;
+	fetchedAt: string;
+	source: string;
 }
 
 export interface MetacriticRelease {

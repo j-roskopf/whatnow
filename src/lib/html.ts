@@ -33,3 +33,7 @@ const LOCAL_ART_EXTENSIONS = ['.jpg', '.png', '.webp'] as const;
 export function localReleaseArtPaths(slug: string): string[] {
 	return LOCAL_ART_EXTENSIONS.map((ext) => `/art/releases/${slug}${ext}`);
 }
+
+export function localUpcomingArtPaths(slug: string): string[] {
+	return LOCAL_ART_EXTENSIONS.map((ext) => `/art/upcoming/${slug}${ext}`);
+}

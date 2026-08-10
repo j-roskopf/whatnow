@@ -6,7 +6,8 @@ import type {
 	MetacriticPlatform,
 	MetacriticRelease,
 	MetacriticReleasesResponse,
-	RatingScore
+	RatingScore,
+	UpcomingPlatformKey
 } from '$lib/types';
 
 const BASE_URL = 'https://www.metacritic.com';
@@ -21,6 +22,15 @@ type ReleasesCacheEntry = { expires: number; data: MetacriticReleasesResponse };
 const releasesCache = new Map<string, ReleasesCacheEntry>();
 
 const METACRITIC_PLATFORMS: MetacriticPlatform[] = ['ps5', 'ps4', 'switch', 'xbox-series-x', 'pc'];
+
+const COMING_SOON_SLUG: Record<Exclude<UpcomingPlatformKey, 'all'>, string> = {
+	ps5: 'ps5',
+	ps4: 'ps4',
+	switch: 'nintendo-switch',
+	switch2: 'nintendo-switch-2',
+	'xbox-series-x': 'xbox-series-x',
+	pc: 'pc'
+};
 
 function isMetacriticPlatform(value?: string): MetacriticPlatform | null {
 	if (value && METACRITIC_PLATFORMS.includes(value as MetacriticPlatform)) {
@@ -356,6 +366,34 @@ export async function fetchMetacriticAvailableCatalog(
 	}
 
 	return all;
+}
+
+/** Scrape Metacritic coming-soon lists (PS5, PS4, Switch, Switch 2, Xbox, PC). */
+export async function fetchMetacriticComingSoon(
+	platform: Exclude<UpcomingPlatformKey, 'all'>,
+	options?: { maxPages?: number }
+): Promise<MetacriticRelease[]> {
+	const slug = COMING_SOON_SLUG[platform];
+	const mappedPlatform: MetacriticPlatform = platform === 'switch2' ? 'switch' : platform;
+	const maxPages = options?.maxPages ?? 4;
+	const all: MetacriticRelease[] = [];
+
+	for (let page = 0; page < maxPages; page += 1) {
+		const url =
+			page === 0
+				? `${BASE_URL}/browse/game/${slug}/?releaseType=coming-soon`
+				: `${BASE_URL}/browse/game/${slug}/?releaseType=coming-soon&page=${page + 1}`;
+		const html = await fetchBrowsePage(url);
+		if (!html) break;
+
+		const releases = parseBrowseReleases(html, mappedPlatform);
+		if (!releases.length) break;
+		all.push(...releases);
+		if (releases.length < 20) break;
+	}
+
+	if (!all.length) return all;
+	return enrichReleaseImages(all);
 }
 
 export async function fetchMetacriticNewReleases(

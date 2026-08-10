@@ -72,6 +72,7 @@ export function storeUrlFromPlatformsLabel(name: string, platforms: string): str
 	if (/ps5|ps4|playstation/i.test(p)) return psStoreSearchUrl(name);
 	if (/xbox|xsx|game pass/i.test(p)) return xboxStoreUrl(name);
 	if (/\bpc\b|windows/i.test(p)) return steamSearchUrl(name);
+	if (/switch 2|ns2/i.test(p)) return nintendoStoreSearchUrl(name);
 	if (/switch|nintendo/i.test(p)) return nintendoStoreSearchUrl(name);
 	return undefined;
 }

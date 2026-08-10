@@ -8,7 +8,6 @@
 	import ServiceCatalog from '$lib/components/ServiceCatalog.svelte';
 	import RandomPicker from '$lib/components/RandomPicker.svelte';
 	import UpcomingRail from '$lib/components/UpcomingRail.svelte';
-	import { UPCOMING } from '$lib/data';
 	import { loadPool } from '$lib/pool';
 	import { loadPinned } from '$lib/pinned';
 	import { loadDismissed, loadHand, saveDismissed, saveHand } from '$lib/storage';
@@ -231,7 +230,7 @@
 		<NewReleasesRail {today} />
 	{:else if tab === 'soon'}
 		<div class="slab"><h2>Landing soon</h2><div class="line"></div></div>
-		<UpcomingRail games={UPCOMING} {today} />
+		<UpcomingRail {today} />
 	{:else if tab === 'psplus'}
 		<div class="slab"><h2>PS Plus catalog</h2><div class="line"></div></div>
 		<ServiceCatalog service="psplus" />

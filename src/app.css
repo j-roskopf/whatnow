@@ -70,6 +70,7 @@ h1 em { font-style: normal; color: var(--soon); }
 .catalog-card:hover .art.retro .box.on { opacity: 0; }
 .system-tabs { margin-top: -6px; }
 .catalog-note { margin-top: 14px; color: #6e6790; font: 10px 'JetBrains Mono', monospace; }
+.upcoming-more { margin-top: 14px; justify-content: space-between; }
 .pager { display: flex; align-items: center; justify-content: center; gap: 14px; margin-top: 18px; }
 .pager button { padding: 8px 14px; border: 1px solid var(--rule); border-radius: 99px; background: var(--card); color: var(--text); cursor: pointer; font: 11px 'JetBrains Mono', monospace; }
 .pager button:disabled { opacity: .4; cursor: not-allowed; }
