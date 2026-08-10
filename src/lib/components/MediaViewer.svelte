@@ -42,11 +42,11 @@
 	class="viewer"
 	role="dialog"
 	aria-modal="true"
+	tabindex="-1"
 	aria-label={`${title} media`}
-	onclick={onClose}
 >
 	<button class="viewer-close" type="button" aria-label="Close" onclick={onClose}>✕</button>
-	<div class="viewer-panel" onclick={(e) => e.stopPropagation()}>
+	<div class="viewer-panel">
 		<div class="viewer-head">
 			<h2>{title}</h2>
 			<span>{index + 1} / {items.length}</span>
