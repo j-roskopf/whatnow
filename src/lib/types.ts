@@ -6,6 +6,7 @@ export type MediaKind = 'cover' | 'screenshot' | 'hero' | 'title' | 'logo';
 
 export type BrowseTab =
 	| 'tonight'
+	| 'random'
 	| 'psplus'
 	| 'gamepass'
 	| 'retro'

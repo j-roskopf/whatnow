@@ -16,6 +16,9 @@
 	--soon: #f26ea8;
 	--retro: #7fd4e8;
 	--modern: #c4a8ff;
+	--humble: #e8a45e;
+	--psplus: #5ee2a0;
+	--gamepass: #7fd4e8;
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -164,6 +167,121 @@ footer button:hover { color: var(--leaving); }
 .viewer-strip button:hover { opacity: .85; }
 .viewer-strip button.sel { border-color: var(--soon); opacity: 1; }
 .viewer-strip img { width: 100%; height: 100%; object-fit: cover; }
+
+.random-wrap { margin-top: 4px; }
+.random-stage {
+	position: relative;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 22px;
+	padding: 42px 24px 32px;
+	border: 1px solid var(--rule);
+	border-radius: 20px;
+	background:
+		radial-gradient(ellipse 70% 55% at 50% 0%, rgba(242, 110, 168, .12), transparent 68%),
+		var(--card);
+	overflow: hidden;
+}
+.random-stage::before {
+	position: absolute;
+	inset: 0;
+	background: conic-gradient(from 0deg, transparent, rgba(242, 110, 168, .06), transparent, rgba(127, 212, 232, .06), transparent);
+	opacity: 0;
+	content: '';
+	pointer-events: none;
+}
+.random-stage.spinning::before { opacity: 1; animation: random-rotate 2.6s linear infinite; }
+.random-stage.reveal { border-color: rgba(242, 110, 168, .45); box-shadow: 0 0 48px rgba(242, 110, 168, .12); }
+.random-orbit {
+	position: relative;
+	display: flex;
+	gap: 8px;
+	flex-wrap: wrap;
+	justify-content: center;
+	max-width: 520px;
+}
+.orbit-chip {
+	padding: 5px 10px;
+	border: 1px solid var(--rule);
+	border-radius: 99px;
+	color: var(--muted);
+	font: 700 9px 'JetBrains Mono', monospace;
+	letter-spacing: .1em;
+	text-transform: uppercase;
+	opacity: .45;
+	transition: opacity .15s, border-color .15s, color .15s, transform .2s;
+}
+.random-stage.spinning .orbit-chip.lit {
+	border-color: var(--src-color, var(--soon));
+	color: var(--src-color, var(--soon));
+	opacity: 1;
+	transform: scale(1.06);
+}
+.random-core {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 10px;
+	max-width: 640px;
+	text-align: center;
+}
+.random-source {
+	font: 900 clamp(28px, 7vw, 52px)/1 'Archivo', sans-serif;
+	letter-spacing: -.03em;
+	text-transform: uppercase;
+	transition: color .12s, transform .2s;
+}
+.random-source.pulse { animation: random-pulse .35s ease-in-out infinite alternate; }
+.random-source-psplus { color: var(--psplus); }
+.random-source-gamepass { color: var(--gamepass); }
+.random-source-humble { color: var(--humble); }
+.random-source-modern { color: var(--modern); }
+.random-source-retro { color: var(--retro); }
+.random-name {
+	font: 700 clamp(18px, 4vw, 28px)/1.2 'Archivo', sans-serif;
+	letter-spacing: -.02em;
+	transition: filter .15s, opacity .15s;
+}
+.random-name.blur { filter: blur(2px); opacity: .75; }
+.random-hint {
+	color: var(--muted);
+	font: 11px 'JetBrains Mono', monospace;
+	letter-spacing: .08em;
+	text-transform: uppercase;
+}
+.random-hint.shuffle { color: var(--soon); animation: random-pulse .5s ease-in-out infinite alternate; }
+.random-hint.landed strong { color: var(--text); }
+.random-actions { margin-top: 4px; }
+.random-spin {
+	padding: 12px 28px;
+	border: 1px solid var(--soon);
+	border-radius: 99px;
+	background: rgba(242, 110, 168, .16);
+	color: var(--text);
+	cursor: pointer;
+	font: 700 12px 'JetBrains Mono', monospace;
+	letter-spacing: .14em;
+	text-transform: uppercase;
+	transition: background .2s, transform .2s, box-shadow .2s;
+}
+.random-spin:hover:not(:disabled) {
+	background: rgba(242, 110, 168, .28);
+	box-shadow: 0 0 24px rgba(242, 110, 168, .25);
+	transform: translateY(-1px);
+}
+.random-spin:disabled { opacity: .7; cursor: wait; }
+.random-reveal-card {
+	margin: 22px auto 0;
+	max-width: 280px;
+	animation: random-pop .55s cubic-bezier(.2, 1.1, .3, 1);
+}
+@keyframes random-rotate { to { transform: rotate(360deg); } }
+@keyframes random-pulse { from { opacity: .72; } to { opacity: 1; } }
+@keyframes random-pop {
+	from { opacity: 0; transform: scale(.88) translateY(12px); }
+	to { opacity: 1; transform: scale(1) translateY(0); }
+}
 
 @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
 @media (max-width: 580px) {

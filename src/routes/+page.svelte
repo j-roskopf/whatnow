@@ -6,6 +6,7 @@
 	import NewReleasesRail from '$lib/components/NewReleasesRail.svelte';
 	import PinnedShelf from '$lib/components/PinnedShelf.svelte';
 	import ServiceCatalog from '$lib/components/ServiceCatalog.svelte';
+	import RandomPicker from '$lib/components/RandomPicker.svelte';
 	import UpcomingRail from '$lib/components/UpcomingRail.svelte';
 	import { UPCOMING } from '$lib/data';
 	import { loadPool } from '$lib/pool';
@@ -223,6 +224,8 @@
 		</div>
 		<JustArrivedRail />
 		<PinnedShelf />
+	{:else if tab === 'random'}
+		<RandomPicker />
 	{:else if tab === 'new'}
 		<div class="slab"><h2>New releases</h2><div class="line"></div></div>
 		<NewReleasesRail {today} />

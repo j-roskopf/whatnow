@@ -177,6 +177,7 @@ export function filterCatalogByMinScore(
 
 export const BROWSE_TABS: { id: BrowseTab; label: string }[] = [
 	{ id: 'tonight', label: 'Tonight' },
+	{ id: 'random', label: 'Random' },
 	{ id: 'psplus', label: 'PS Plus' },
 	{ id: 'gamepass', label: 'Game Pass' },
 	{ id: 'modern', label: 'Modern' },
