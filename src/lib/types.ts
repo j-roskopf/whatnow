@@ -27,7 +27,11 @@ export type RatingSource = 'igdb-critics' | 'igdb-players' | 'opencritic' | 'met
 export type MinScoreSource = 'igdb-critics' | 'metacritic' | 'opencritic';
 
 export type CatalogService = 'gamepass' | 'psplus' | 'modern' | 'retro' | 'humble';
-export type PinnedSectionId = 'psplus-monthly' | 'humble-choice' | 'humble-bundles';
+export type PinnedSectionId =
+	| 'psplus-monthly'
+	| 'humble-choice'
+	| 'humble-bundles'
+	| `humble-bundle-${string}`;
 export type CatalogSection = 'leaving' | 'new' | 'library' | 'picks';
 export type RetroSystemKey = 'snes' | 'gba' | 'nds' | 'n64' | 'gc' | 'ps1' | 'ps2' | 'md';
 

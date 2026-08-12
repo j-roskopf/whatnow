@@ -1,4 +1,4 @@
-import type { CatalogEntry } from '$lib/types';
+import type { CatalogEntry, PinnedSectionId } from '$lib/types';
 
 const USER_AGENT = 'Mozilla/5.0 (compatible; WhatNow/1.0)';
 const HUMBLE_ORIGIN = 'https://www.humblebundle.com';
@@ -90,6 +90,22 @@ type HomepageWebpack = {
 	mosaic?: MosaicSection[];
 };
 
+type GamesLandingWebpack = {
+	data?: {
+		games?: {
+			mosaic?: MosaicSection[];
+		};
+	};
+};
+
+export type HumbleBundleGroup = {
+	id: PinnedSectionId;
+	label: string;
+	machineName: string;
+	storeUrl: string;
+	entries: CatalogEntry[];
+};
+
 type BundleTierItem = {
 	machine_name?: string;
 	human_name?: string;
@@ -164,9 +180,9 @@ function bundleItemToEntry(
 	};
 }
 
-async function fetchBundleGames(
+async function fetchBundleGroup(
 	product: Record<string, unknown>
-): Promise<CatalogEntry[]> {
+): Promise<HumbleBundleGroup | null> {
 	const productUrl = (product.product_url as string | undefined) ?? '';
 	const machineName = (product.machine_name as string | undefined) ?? '';
 	const bundleName =
@@ -174,40 +190,76 @@ async function fetchBundleGames(
 		(product.tile_short_name as string | undefined) ??
 		machineName;
 
-	if (!productUrl || !machineName) return [];
+	if (!productUrl || !machineName) return null;
 
 	const html = await fetchHumbleHtml(productUrl);
 	const data = extractScriptJson(html, 'webpack-bundle-page-data') as BundlePageWebpack | null;
 	const tierItems = data?.bundleData?.tier_item_data;
-	if (!tierItems) return [];
+	if (!tierItems) return null;
 
 	const displayName = data.bundleData?.basic_data?.human_name ?? bundleName;
 	const bundleUrl = data.bundleData?.page_url
 		? humbleOriginPath(data.bundleData.page_url)
 		: humbleOriginPath(productUrl);
 
-	return Object.values(tierItems)
+	const seen = new Set<string>();
+	const entries = Object.values(tierItems)
 		.map((item) => {
 			const entry = bundleItemToEntry(item, displayName, machineName);
 			if (entry) entry.storeUrl = bundleUrl;
 			return entry;
 		})
-		.filter((entry): entry is CatalogEntry => Boolean(entry));
+		.filter((entry): entry is CatalogEntry => Boolean(entry))
+		.filter((entry) => {
+			const key = entry.name.toLowerCase();
+			if (seen.has(key)) return false;
+			seen.add(key);
+			return true;
+		})
+		.sort((a, b) => a.name.localeCompare(b.name));
+
+	if (!entries.length) return null;
+
+	const id = `humble-bundle-${slug(machineName.replace(/_bundle$/, ''))}` as const;
+	return {
+		id,
+		label: displayName,
+		machineName,
+		storeUrl: bundleUrl,
+		entries
+	};
+}
+
+function productsFromMosaic(mosaic: MosaicSection[] | undefined): Record<string, unknown>[] {
+	const products: Record<string, unknown>[] = [];
+	const seen = new Set<string>();
+	for (const section of mosaic ?? []) {
+		for (const product of section.products ?? []) {
+			if (!isGameBundleProduct(product)) continue;
+			const key =
+				(product.machine_name as string | undefined) ??
+				(product.product_url as string | undefined) ??
+				'';
+			if (!key || seen.has(key)) continue;
+			seen.add(key);
+			products.push(product);
+		}
+	}
+	return products;
 }
 
 async function fetchActiveGameBundleProducts(): Promise<Record<string, unknown>[]> {
-	const html = await fetchHumbleHtml('/');
-	const data = extractScriptJson(html, 'webpack-json-data') as HomepageWebpack | null;
-	if (!data?.mosaic) return [];
+	// Full active game-bundle list lives on /games; homepage mosaic only features a few.
+	const gamesHtml = await fetchHumbleHtml('/games');
+	const gamesData = extractScriptJson(gamesHtml, 'landingPage-json-data') as GamesLandingWebpack | null;
+	const fromGames = productsFromMosaic(gamesData?.data?.games?.mosaic);
+	if (fromGames.length) return fromGames;
 
-	const products: Record<string, unknown>[] = [];
-	for (const section of data.mosaic) {
-		for (const product of section.products ?? []) {
-			if (isGameBundleProduct(product)) products.push(product);
-		}
-	}
-
-	if (products.length) return products;
+	console.warn('Humble /games landing had no game bundles; falling back to homepage mosaic…');
+	const homeHtml = await fetchHumbleHtml('/');
+	const homeData = extractScriptJson(homeHtml, 'webpack-json-data') as HomepageWebpack | null;
+	const fromHome = productsFromMosaic(homeData?.mosaic);
+	if (fromHome.length) return fromHome;
 
 	console.warn(
 		'Humble homepage mosaic had no game bundles; trying legacy service_check API…'
@@ -265,13 +317,20 @@ export async function fetchHumbleChoice(): Promise<CatalogEntry[]> {
 	return entries.sort((a, b) => a.name.localeCompare(b.name));
 }
 
-export async function fetchHumbleActiveBundleGames(): Promise<CatalogEntry[]> {
+export async function fetchHumbleActiveBundles(): Promise<HumbleBundleGroup[]> {
 	const products = await fetchActiveGameBundleProducts();
-	const bundles = await Promise.all(products.map((product) => fetchBundleGames(product)));
-	const entries = bundles.flat();
+	const bundles = await Promise.all(products.map((product) => fetchBundleGroup(product)));
+	return bundles
+		.filter((bundle): bundle is HumbleBundleGroup => Boolean(bundle))
+		.sort((a, b) => a.label.localeCompare(b.label));
+}
 
+/** Flat game list across active bundles (deduped by name). */
+export async function fetchHumbleActiveBundleGames(): Promise<CatalogEntry[]> {
+	const bundles = await fetchHumbleActiveBundles();
 	const seen = new Set<string>();
-	return entries
+	return bundles
+		.flatMap((bundle) => bundle.entries)
 		.filter((entry) => {
 			const key = entry.name.toLowerCase();
 			if (seen.has(key)) return false;
