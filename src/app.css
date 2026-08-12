@@ -37,6 +37,14 @@ a { color: inherit; }
 .wrap { max-width: 1180px; margin: 0 auto; }
 
 header { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.brand { display: flex; align-items: center; gap: 14px; min-width: 0; }
+.brand-mark {
+	flex: 0 0 auto;
+	width: clamp(52px, 12vw, 72px);
+	height: clamp(52px, 12vw, 72px);
+	object-fit: contain;
+	filter: drop-shadow(0 6px 18px rgba(0, 0, 0, .35));
+}
 h1 { font-family: 'Archivo', sans-serif; font-weight: 900; font-size: clamp(38px, 9vw, 64px); line-height: .92; letter-spacing: -.035em; text-transform: uppercase; }
 h1 em { font-style: normal; color: var(--soon); }
 .stamp { padding-bottom: 6px; color: var(--muted); font: 11px/1.7 'JetBrains Mono', monospace; letter-spacing: .14em; text-align: right; text-transform: uppercase; }
@@ -301,6 +309,7 @@ footer button:hover { color: var(--leaving); }
 		align-items: flex-start;
 		gap: 8px;
 	}
+	.brand { gap: 10px; }
 	.stamp { padding-bottom: 0; text-align: left; }
 	h1 { font-size: clamp(34px, 14vw, 52px); }
 	.sub { margin: 12px 0 18px; font-size: 13px; }
