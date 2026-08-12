@@ -190,11 +190,18 @@
 <svelte:head>
 	<title>What Now — a shorter way to choose</title>
 	<meta name="description" content="Ten games, weighted toward what you already pay for and what is about to disappear." />
+	<meta property="og:title" content="What Now — a shorter way to choose" />
+	<meta property="og:description" content="Ten games, weighted toward what you already pay for and what is about to disappear." />
+	<meta property="og:image" content="https://whatnow.joetr.com/logo.png" />
+	<link rel="manifest" href="/site.webmanifest" />
 </svelte:head>
 
 <div class="wrap">
 	<header>
-		<h1>What<br /><em>now</em></h1>
+		<div class="brand">
+			<img class="brand-mark" src="/logo.png" width="72" height="72" alt="" />
+			<h1>What<br /><em>now</em></h1>
+		</div>
 		<div class="stamp">{today.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}</div>
 	</header>
 
