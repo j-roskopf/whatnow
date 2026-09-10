@@ -1,5 +1,6 @@
 import { browser } from '$app/environment';
-import { lookupGameMeta, lookupGameMetaBatch } from '$lib/remote-meta';
+import { isBrowserSafeImageUrl } from '$lib/html';
+import { lookupGameMetaBatch } from '$lib/remote-meta';
 import type {
 	ArtLookup,
 	GameMedia,
@@ -120,11 +121,17 @@ export async function remoteMeta(game: ArtLookup): Promise<GameMeta> {
 	if (cached?.items.length) return cached;
 
 	try {
-		const result = await lookupGameMeta(game.name, {
-			releaseDate: game.releaseDate,
-			searchAs: game.searchAs,
-			igdbId: game.igdbId
-		});
+		const results = await lookupGameMetaBatch([
+			{
+				id: game.id,
+				name: game.name,
+				releaseDate: game.releaseDate,
+				searchAs: game.searchAs,
+				igdbId: game.igdbId
+			}
+		]);
+		const result = results[game.id] ?? { items: [], ratings: { scores: [] } };
+		result.items = result.items.filter((item) => isBrowserSafeImageUrl(item.url));
 		if (result.items.length || result.ratings.scores.length) writeCachedMeta(game, result);
 		return result;
 	} catch {
@@ -164,9 +171,14 @@ export async function loadMetaBatch(lookups: ArtLookup[]): Promise<Record<string
 				const batch = await lookupGameMetaBatch(chunk);
 				for (const lookup of chunk) {
 					const meta = batch[lookup.id];
-					if (!meta || (!meta.items.length && !meta.ratings.scores.length)) continue;
-					writeCachedMeta(lookup, meta);
-					results[lookup.id] = meta;
+					if (!meta) continue;
+					const safe: GameMeta = {
+						...meta,
+						items: meta.items.filter((item) => isBrowserSafeImageUrl(item.url))
+					};
+					if (!safe.items.length && !safe.ratings.scores.length) continue;
+					writeCachedMeta(lookup, safe);
+					results[lookup.id] = safe;
 				}
 			}
 		} catch {

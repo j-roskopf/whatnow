@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { coverItem, galleryItems, loadGameMeta, screenshotItem } from '$lib/art';
-	import { normalizeImageUrl } from '$lib/html';
+	import { pickDisplayImageUrl } from '$lib/html';
 	import { resolveGameStoreUrl } from '$lib/store-urls';
 	import MediaViewer from '$lib/components/MediaViewer.svelte';
 	import type { ArtStatus, Game, GameRatings, MediaItem } from '$lib/types';
@@ -61,8 +61,8 @@
 
 	function catalogMedia(game: Game): MediaItem[] {
 		const items: MediaItem[] = [];
-		const snap = normalizeImageUrl(game.snapUrl);
-		const cover = normalizeImageUrl(game.imageUrl);
+		const snap = pickDisplayImageUrl(game.snapUrl);
+		const cover = pickDisplayImageUrl(game.imageUrl);
 		if (snap) {
 			items.push({ url: snap, fit: 'cover', source: 'libretro', kind: 'screenshot' });
 		}
@@ -87,9 +87,13 @@
 			onArtStatus?.('loaded');
 		}
 
-		const meta = await loadGameMeta(game);
-		if (meta.items.length) media = meta.items;
-		if (!ratingsProp?.scores.length && meta.ratings.scores.length) ratings = meta.ratings;
+		// Skip remote lookup when catalog already gave us safe art (and ratings if provided).
+		const needsRemote = !catalog.length || !ratingsProp?.scores.length;
+		if (needsRemote) {
+			const meta = await loadGameMeta(game);
+			if (meta.items.length) media = meta.items;
+			if (!ratingsProp?.scores.length && meta.ratings.scores.length) ratings = meta.ratings;
+		}
 		loading = false;
 
 		if (!onArtStatus || catalog.length) return;

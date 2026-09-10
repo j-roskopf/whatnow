@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { cachedImageLoad, coverItem, imageLoads, loadGameMeta } from '$lib/art';
-	import { normalizeImageUrl, pickDisplayImageUrl } from '$lib/html';
+	import { pickDisplayImageUrl } from '$lib/html';
 	import { resolveCatalogStoreUrl } from '$lib/store-urls';
 	import type { CatalogEntry, GameRatings } from '$lib/types';
 
@@ -42,8 +42,8 @@
 	const storeUrl = $derived(resolveCatalogStoreUrl(entry));
 
 	$effect(() => {
-		coverUrl = normalizeImageUrl(entry.imageUrl);
-		snapUrl = normalizeImageUrl(entry.snapUrl);
+		coverUrl = pickDisplayImageUrl(entry.imageUrl);
+		snapUrl = pickDisplayImageUrl(entry.snapUrl);
 		triedRemote = false;
 	});
 
@@ -102,7 +102,11 @@
 		}
 		if (snap && cachedSnap === undefined) {
 			artLoading = true;
-			pending.push(imageLoads(snap).then((ok) => (snapReady = ok)));
+			pending.push(
+				imageLoads(snap).then((ok) => {
+					snapReady = ok;
+				})
+			);
 		}
 
 		if (!pending.length) {
