@@ -1,29 +1,13 @@
 import { error } from '@sveltejs/kit';
-import { existsSync, readFileSync } from 'node:fs';
-import { mirrorMetacriticCover } from '$lib/server/mirror-image';
+import { fetchMirroredCover } from '$lib/server/mirror-image';
 import type { RequestHandler } from './$types';
 
 export const prerender = false;
-
-const EXT_TYPES: Record<string, string> = {
-	'.jpg': 'image/jpeg',
-	'.png': 'image/png',
-	'.webp': 'image/webp'
-};
 
 type CoverCategory = 'releases' | 'upcoming';
 
 function parseCategory(value: string | null): CoverCategory {
 	return value === 'upcoming' ? 'upcoming' : 'releases';
-}
-
-function readLocalCover(slug: string, category: CoverCategory): { body: Buffer; type: string } | null {
-	for (const [ext, type] of Object.entries(EXT_TYPES)) {
-		const path = `static/art/${category}/${slug}${ext}`;
-		if (!existsSync(path)) continue;
-		return { body: readFileSync(path), type };
-	}
-	return null;
 }
 
 export const GET: RequestHandler = async ({ url }) => {
@@ -33,18 +17,12 @@ export const GET: RequestHandler = async ({ url }) => {
 	}
 
 	const category = parseCategory(url.searchParams.get('category'));
+	const mirrored = await fetchMirroredCover(slug, category);
+	if (!mirrored) error(404, 'Cover not found');
 
-	let local = readLocalCover(slug, category);
-	if (!local) {
-		const mirrored = await mirrorMetacriticCover(slug, category);
-		if (!mirrored) error(404, 'Cover not found');
-		local = readLocalCover(slug, category);
-		if (!local) error(404, 'Cover not found');
-	}
-
-	return new Response(new Uint8Array(local.body), {
+	return new Response(new Uint8Array(mirrored.body), {
 		headers: {
-			'Content-Type': local.type,
+			'Content-Type': mirrored.type,
 			'Cache-Control': 'public, max-age=86400, immutable'
 		}
 	});

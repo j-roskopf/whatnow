@@ -12,11 +12,20 @@ export function normalizeImageUrl(url?: string | null): string | undefined {
 	return decodeHtmlEntities(url.trim());
 }
 
-/** Metacritic's CDN blocks browser hotlinking (Cloudflare 403). */
+/**
+ * CDNs that refuse browser hotlinking from our origin (typically Cloudflare 403).
+ * Catalog JSON may still store these; never put them in <img src>.
+ */
+const BLOCKED_IMAGE_HOST_SNIPPETS = [
+	'metacritic.com/a/img',
+	'hb.imgix.net'
+] as const;
+
+/** True when the URL can be used directly as an <img src> from the browser. */
 export function isBrowserSafeImageUrl(url?: string | null): boolean {
 	const normalized = normalizeImageUrl(url);
 	if (!normalized) return false;
-	return !normalized.includes('metacritic.com/a/img');
+	return !BLOCKED_IMAGE_HOST_SNIPPETS.some((snippet) => normalized.includes(snippet));
 }
 
 export function pickDisplayImageUrl(...candidates: (string | undefined | null)[]): string | undefined {

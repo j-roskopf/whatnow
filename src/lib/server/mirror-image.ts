@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { decodeHtmlEntities } from '$lib/html';
 
@@ -10,7 +10,20 @@ const EXT_FOR_TYPE: Record<string, string> = {
 	'image/webp': '.webp'
 };
 
+const TYPE_FOR_EXT: Record<string, string> = {
+	'.jpg': 'image/jpeg',
+	'.png': 'image/png',
+	'.webp': 'image/webp'
+};
+
 const IMAGE_URL_RE = /https:\/\/www\.metacritic\.com\/a\/img\/resize\/[^"'\s)]+/g;
+
+export type MirroredCover = {
+	body: Buffer;
+	type: string;
+	/** Public path when persisted under static/ (build-time / local only). */
+	publicPath?: string;
+};
 
 function coverCandidates(html: string): string[] {
 	const seen = new Set<string>();
@@ -28,20 +41,52 @@ function coverCandidates(html: string): string[] {
 	});
 }
 
-/**
- * Downloads a Metacritic cover server-side (with page cookies) and saves it under static/art/.
- * Returns the public path (e.g. /art/releases/foo.jpg) or undefined on failure.
- */
-export async function mirrorMetacriticCover(
+function readExistingCover(
 	slug: string,
 	category: 'releases' | 'upcoming'
-): Promise<string | undefined> {
-	const baseName = `${category}/${slug}`;
-	const publicBase = `/art/${baseName}`;
+): MirroredCover | undefined {
+	const bases = [
+		`static/art/${category}/${slug}`,
+		`/tmp/whatnow-art/${category}/${slug}`
+	];
 
-	for (const ext of ['.jpg', '.png', '.webp']) {
-		if (existsSync(`static${publicBase}${ext}`)) return `${publicBase}${ext}`;
+	for (const base of bases) {
+		for (const [ext, type] of Object.entries(TYPE_FOR_EXT)) {
+			const path = `${base}${ext}`;
+			if (!existsSync(path)) continue;
+			return {
+				body: readFileSync(path),
+				type,
+				publicPath: base.startsWith('static/') ? `/art/${category}/${slug}${ext}` : undefined
+			};
+		}
 	}
+
+	return undefined;
+}
+
+function tryWrite(path: string, body: Buffer) {
+	try {
+		mkdirSync(dirname(path), { recursive: true });
+		writeFileSync(path, body);
+		return true;
+	} catch {
+		// Vercel (and similar) keep the deploy FS read-only; /tmp may still work.
+		return false;
+	}
+}
+
+/**
+ * Fetches a Metacritic cover server-side (with page cookies).
+ * Returns image bytes for the API response. Best-effort disk cache only —
+ * never required, so serverless read-only filesystems stay healthy.
+ */
+export async function fetchMirroredCover(
+	slug: string,
+	category: 'releases' | 'upcoming'
+): Promise<MirroredCover | undefined> {
+	const existing = readExistingCover(slug, category);
+	if (existing) return existing;
 
 	const pageUrl = `https://www.metacritic.com/game/${slug}/`;
 	let pageResponse: Response;
@@ -85,13 +130,30 @@ export async function mirrorMetacriticCover(
 		if (!contentType?.startsWith('image/')) continue;
 
 		const ext = EXT_FOR_TYPE[contentType] || '.jpg';
-		const diskPath = `static${publicBase}${ext}`;
-		const publicPath = `${publicBase}${ext}`;
+		const body = Buffer.from(await imageResponse.arrayBuffer());
+		const publicPath = `/art/${category}/${slug}${ext}`;
 
-		mkdirSync(dirname(diskPath), { recursive: true });
-		writeFileSync(diskPath, Buffer.from(await imageResponse.arrayBuffer()));
-		return publicPath;
+		const wroteStatic = tryWrite(`static${publicPath}`, body);
+		tryWrite(`/tmp/whatnow-art/${category}/${slug}${ext}`, body);
+
+		return {
+			body,
+			type: contentType,
+			publicPath: wroteStatic ? publicPath : undefined
+		};
 	}
 
 	return undefined;
+}
+
+/**
+ * Downloads a Metacritic cover and returns the public static path when possible.
+ * Used by generate-data at build time; on Vercel prefer fetchMirroredCover.
+ */
+export async function mirrorMetacriticCover(
+	slug: string,
+	category: 'releases' | 'upcoming'
+): Promise<string | undefined> {
+	const mirrored = await fetchMirroredCover(slug, category);
+	return mirrored?.publicPath;
 }
