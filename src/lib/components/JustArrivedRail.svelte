@@ -23,8 +23,9 @@
 
 		for (const entry of [...gamepass, ...psplus]) {
 			const key = entry.name.toLowerCase().replace(/[^a-z0-9]/g, '');
-			if (seen.has(key)) continue;
+			if (seen.has(key) || seen.has(entry.id)) continue;
 			seen.add(key);
+			seen.add(entry.id);
 			merged.push(entry);
 		}
 

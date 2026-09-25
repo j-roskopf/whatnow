@@ -199,11 +199,13 @@ function imagicToEntry(
 }
 
 function dedupePsPlus(entries: CatalogEntry[]): CatalogEntry[] {
-	const seen = new Set<string>();
+	const seenNames = new Set<string>();
+	const seenIds = new Set<string>();
 	return entries.filter((entry) => {
-		const key = entry.name.toLowerCase();
-		if (seen.has(key)) return false;
-		seen.add(key);
+		const name = entry.name.toLowerCase();
+		if (seenNames.has(name) || seenIds.has(entry.id)) return false;
+		seenNames.add(name);
+		seenIds.add(entry.id);
 		return true;
 	});
 }

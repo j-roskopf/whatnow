@@ -1,5 +1,6 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { isBrowserSafeImageUrl } from '../src/lib/html.ts';
+import { dedupeById } from '../src/lib/dedupe.ts';
 import { CURATED_UPCOMING, RETRO_SYSTEM_KEYS } from '../src/lib/data.ts';
 import { fetchCatalog, fetchLivePool } from '../src/lib/live/catalog.ts';
 import { fetchPinnedSections } from '../src/lib/live/pinned.ts';
@@ -23,6 +24,10 @@ const outDir = 'static/data';
 
 function writeJson(path: string, data: unknown) {
 	writeFileSync(path, `${JSON.stringify(data)}\n`);
+}
+
+function dedupeCatalog(result: CatalogResponse): CatalogResponse {
+	return { ...result, entries: dedupeById(result.entries) };
 }
 
 function slugId(name: string) {
@@ -184,22 +189,34 @@ mkdirSync('static/art/releases', { recursive: true });
 mkdirSync('static/art/upcoming', { recursive: true });
 
 console.log('Generating pool data…');
-writeJson(`${outDir}/pool-fast.json`, await fetchLivePool({ includeRetro: true, fast: true }));
-writeJson(`${outDir}/pool.json`, await fetchLivePool({ includeRetro: true }));
+const poolFast = await fetchLivePool({ includeRetro: true, fast: true });
+writeJson(`${outDir}/pool-fast.json`, { ...poolFast, games: dedupeById(poolFast.games) });
+const pool = await fetchLivePool({ includeRetro: true });
+writeJson(`${outDir}/pool.json`, { ...pool, games: dedupeById(pool.games) });
 
 console.log('Generating pinned subscriptions…');
-writeJson(`${outDir}/pinned.json`, await fetchPinnedSections());
+const pinned = await fetchPinnedSections();
+writeJson(`${outDir}/pinned.json`, {
+	...pinned,
+	sections: pinned.sections.map((section) => ({
+		...section,
+		entries: dedupeById(section.entries)
+	}))
+});
 
 for (const [service, section] of catalogQueries) {
 	const key = `${service}-${section}`;
 	console.log(`Generating catalog ${key}…`);
-	writeJson(`${outDir}/catalog/${key}.json`, await fetchCatalog(service, section));
+	writeJson(`${outDir}/catalog/${key}.json`, dedupeCatalog(await fetchCatalog(service, section)));
 }
 
 for (const system of RETRO_SYSTEM_KEYS) {
 	const key = `retro-library-${system}`;
 	console.log(`Generating catalog ${key}…`);
-	writeJson(`${outDir}/catalog/${key}.json`, await fetchCatalog('retro', 'library', system));
+	writeJson(
+		`${outDir}/catalog/${key}.json`,
+		dedupeCatalog(await fetchCatalog('retro', 'library', system))
+	);
 }
 
 for (const platform of metacriticPlatforms) {

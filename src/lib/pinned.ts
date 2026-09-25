@@ -1,4 +1,5 @@
 import type { PinnedResponse } from '$lib/types';
+import { dedupeById } from '$lib/dedupe';
 
 const emptyPinned = (): PinnedResponse => ({
 	sections: [],
@@ -10,7 +11,14 @@ export async function loadPinned(): Promise<PinnedResponse> {
 	try {
 		const response = await fetch('/data/pinned.json');
 		if (!response.ok) return emptyPinned();
-		return (await response.json()) as PinnedResponse;
+		const data = (await response.json()) as PinnedResponse;
+		return {
+			...data,
+			sections: (data.sections ?? []).map((section) => ({
+				...section,
+				entries: dedupeById(section.entries ?? [])
+			}))
+		};
 	} catch {
 		return emptyPinned();
 	}

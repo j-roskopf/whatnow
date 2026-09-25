@@ -73,7 +73,9 @@ function pickBestReleases(files: string[]): string[] {
 
 	for (const file of files) {
 		if (!isPlayableRelease(file)) continue;
-		const label = displayNameFromFile(file).toLowerCase();
+		const label = displayNameFromFile(file)
+			.toLowerCase()
+			.replace(/[^a-z0-9]/g, '');
 		if (!label) continue;
 		const current = buckets.get(label);
 		if (!current || regionRank(file) < regionRank(current)) {
@@ -99,21 +101,28 @@ export async function fetchLibretroSystemCatalog(
 	if (!response.ok) return [];
 
 	const files = pickBestReleases(parseIndexFiles(await response.text()));
-	return files.map((file) => {
-		const name = displayNameFromFile(file);
-		return {
-			id: `retro-${systemKey}-${slug(file)}`,
-			name,
-			service: 'retro',
-			section: 'library',
-			system: systemPath,
-			file,
-			systemLabel,
-			platforms: 'Emulated',
-			imageUrl: libretroMediaUrl(systemPath, 'Named_Boxarts', file),
-			snapUrl: libretroMediaUrl(systemPath, 'Named_Snaps', file),
-			tier: systemLabel,
-			storeUrl: mobyGamesSearchUrl(name)
-		};
-	});
+	const seen = new Set<string>();
+	return files
+		.map((file) => {
+			const name = displayNameFromFile(file);
+			return {
+				id: `retro-${systemKey}-${slug(file)}`,
+				name,
+				service: 'retro',
+				section: 'library',
+				system: systemPath,
+				file,
+				systemLabel,
+				platforms: 'Emulated',
+				imageUrl: libretroMediaUrl(systemPath, 'Named_Boxarts', file),
+				snapUrl: libretroMediaUrl(systemPath, 'Named_Snaps', file),
+				tier: systemLabel,
+				storeUrl: mobyGamesSearchUrl(name)
+			} satisfies CatalogEntry;
+		})
+		.filter((entry) => {
+			if (seen.has(entry.id)) return false;
+			seen.add(entry.id);
+			return true;
+		});
 }

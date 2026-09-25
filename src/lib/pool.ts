@@ -1,4 +1,5 @@
 import type { PoolResponse } from '$lib/types';
+import { dedupeById } from '$lib/dedupe';
 
 export async function loadPool(options?: { fast?: boolean }): Promise<PoolResponse> {
 	try {
@@ -7,7 +8,8 @@ export async function loadPool(options?: { fast?: boolean }): Promise<PoolRespon
 		if (!response.ok) {
 			return { games: [], fetchedAt: new Date().toISOString(), source: 'error' };
 		}
-		return (await response.json()) as PoolResponse;
+		const data = (await response.json()) as PoolResponse;
+		return { ...data, games: dedupeById(data.games ?? []) };
 	} catch {
 		return { games: [], fetchedAt: new Date().toISOString(), source: 'error' };
 	}

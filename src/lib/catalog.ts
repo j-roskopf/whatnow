@@ -1,4 +1,5 @@
 import type { CatalogResponse, CatalogSection, CatalogService, GameRatings } from '$lib/types';
+import { dedupeById } from '$lib/dedupe';
 import { lookupGameRatings } from '$lib/remote-meta';
 
 function catalogFile(
@@ -22,7 +23,8 @@ export async function loadCatalog(
 		if (!response.ok) {
 			return { entries: [], fetchedAt: new Date().toISOString(), source: 'error' };
 		}
-		return (await response.json()) as CatalogResponse;
+		const data = (await response.json()) as CatalogResponse;
+		return { ...data, entries: dedupeById(data.entries ?? []) };
 	} catch {
 		return { entries: [], fetchedAt: new Date().toISOString(), source: 'error' };
 	}
